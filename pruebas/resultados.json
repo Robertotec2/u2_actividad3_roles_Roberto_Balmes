@@ -1,0 +1,1120 @@
+{
+  "ids": {
+    "empresa": "1",
+    "otra": "2",
+    "ana": "1",
+    "rosa": "2",
+    "luis": "3",
+    "maria": "4",
+    "jose": "5",
+    "pedro": "6",
+    "roles": {
+      "ADMINISTRADOR": "1",
+      "CONTADOR": "2",
+      "CAPTURISTA": "3",
+      "CONSULTA": "4"
+    }
+  },
+  "pasos": [
+    {
+      "clave": "P0",
+      "titulo": "Las cinco personas de la empresa con su rol",
+      "regla": "Cada persona tiene un lugar en la empresa y un solo puesto; Ana es la administradora principal",
+      "tipo": "graphql",
+      "query": "query {\n  companyUsers(actorCompanyUserId: \"1\") {\n    id\n    isAdmin\n    user { name }\n    role { code }\n  }\n}",
+      "respuesta": {
+        "data": {
+          "companyUsers": [
+            {
+              "id": "1",
+              "isAdmin": true,
+              "user": {
+                "name": "Ana"
+              },
+              "role": {
+                "code": "ADMINISTRADOR"
+              }
+            },
+            {
+              "id": "3",
+              "isAdmin": false,
+              "user": {
+                "name": "Luis"
+              },
+              "role": {
+                "code": "CONTADOR"
+              }
+            },
+            {
+              "id": "4",
+              "isAdmin": false,
+              "user": {
+                "name": "Maria"
+              },
+              "role": {
+                "code": "CAPTURISTA"
+              }
+            },
+            {
+              "id": "5",
+              "isAdmin": false,
+              "user": {
+                "name": "Jose"
+              },
+              "role": {
+                "code": "CAPTURISTA"
+              }
+            },
+            {
+              "id": "6",
+              "isAdmin": false,
+              "user": {
+                "name": "Pedro"
+              },
+              "role": {
+                "code": "CONSULTA"
+              }
+            }
+          ]
+        }
+      },
+      "ok": true
+    },
+    {
+      "clave": "P1.1",
+      "titulo": "roles muestra los cuatro puestos",
+      "regla": "El catálogo trae exactamente los cuatro roles de la tabla",
+      "tipo": "graphql",
+      "query": "query {\n  roles {\n    id\n    code\n    name\n  }\n}",
+      "respuesta": {
+        "data": {
+          "roles": [
+            {
+              "id": "1",
+              "code": "ADMINISTRADOR",
+              "name": "Administrador"
+            },
+            {
+              "id": "2",
+              "code": "CONTADOR",
+              "name": "Contador"
+            },
+            {
+              "id": "3",
+              "code": "CAPTURISTA",
+              "name": "Capturista"
+            },
+            {
+              "id": "4",
+              "code": "CONSULTA",
+              "name": "Consulta"
+            }
+          ]
+        }
+      },
+      "ok": true
+    },
+    {
+      "clave": "P1.2",
+      "titulo": "permissions muestra los diez códigos",
+      "regla": "El catálogo trae los diez permisos; no hay uno por persona",
+      "tipo": "graphql",
+      "query": "query {\n  permissions {\n    id\n    code\n  }\n}",
+      "respuesta": {
+        "data": {
+          "permissions": [
+            {
+              "id": "1",
+              "code": "company.users.read"
+            },
+            {
+              "id": "2",
+              "code": "company.users.write"
+            },
+            {
+              "id": "3",
+              "code": "accounts.read"
+            },
+            {
+              "id": "4",
+              "code": "accounts.write"
+            },
+            {
+              "id": "5",
+              "code": "concepts.read"
+            },
+            {
+              "id": "6",
+              "code": "concepts.write"
+            },
+            {
+              "id": "7",
+              "code": "transactions.read"
+            },
+            {
+              "id": "8",
+              "code": "transactions.write"
+            },
+            {
+              "id": "9",
+              "code": "roles.read"
+            },
+            {
+              "id": "10",
+              "code": "roles.write"
+            }
+          ]
+        }
+      },
+      "ok": true
+    },
+    {
+      "clave": "P1.3",
+      "titulo": "Lista del capturista antes del cambio",
+      "regla": "CAPTURISTA tiene transactions.write pero no accounts.write",
+      "tipo": "graphql",
+      "query": "query {\n  rolePermissions(roleId: \"3\") {\n    role { code }\n    permission { code }\n    isActive\n  }\n}",
+      "respuesta": {
+        "data": {
+          "rolePermissions": [
+            {
+              "role": {
+                "code": "CAPTURISTA"
+              },
+              "permission": {
+                "code": "accounts.read"
+              },
+              "isActive": true
+            },
+            {
+              "role": {
+                "code": "CAPTURISTA"
+              },
+              "permission": {
+                "code": "concepts.read"
+              },
+              "isActive": true
+            },
+            {
+              "role": {
+                "code": "CAPTURISTA"
+              },
+              "permission": {
+                "code": "transactions.read"
+              },
+              "isActive": true
+            },
+            {
+              "role": {
+                "code": "CAPTURISTA"
+              },
+              "permission": {
+                "code": "transactions.write"
+              },
+              "isActive": true
+            }
+          ]
+        }
+      },
+      "ok": true
+    },
+    {
+      "clave": "P1.4",
+      "titulo": "Lista de consulta",
+      "regla": "CONSULTA no tiene ningún permiso .write, solo ve",
+      "tipo": "graphql",
+      "query": "query {\n  rolePermissions(roleId: \"4\") {\n    role { code }\n    permission { code }\n    isActive\n  }\n}",
+      "respuesta": {
+        "data": {
+          "rolePermissions": [
+            {
+              "role": {
+                "code": "CONSULTA"
+              },
+              "permission": {
+                "code": "company.users.read"
+              },
+              "isActive": true
+            },
+            {
+              "role": {
+                "code": "CONSULTA"
+              },
+              "permission": {
+                "code": "accounts.read"
+              },
+              "isActive": true
+            },
+            {
+              "role": {
+                "code": "CONSULTA"
+              },
+              "permission": {
+                "code": "concepts.read"
+              },
+              "isActive": true
+            },
+            {
+              "role": {
+                "code": "CONSULTA"
+              },
+              "permission": {
+                "code": "transactions.read"
+              },
+              "isActive": true
+            }
+          ]
+        }
+      },
+      "ok": true
+    },
+    {
+      "clave": "P1.5",
+      "titulo": "Lista del contador (antes del cambio de Pedro)",
+      "regla": "CONTADOR tiene accounts.write y no tiene roles.write",
+      "tipo": "graphql",
+      "query": "query {\n  rolePermissions(roleId: \"2\") {\n    role { code }\n    permission { code }\n    isActive\n  }\n}",
+      "respuesta": {
+        "data": {
+          "rolePermissions": [
+            {
+              "role": {
+                "code": "CONTADOR"
+              },
+              "permission": {
+                "code": "company.users.read"
+              },
+              "isActive": true
+            },
+            {
+              "role": {
+                "code": "CONTADOR"
+              },
+              "permission": {
+                "code": "accounts.read"
+              },
+              "isActive": true
+            },
+            {
+              "role": {
+                "code": "CONTADOR"
+              },
+              "permission": {
+                "code": "accounts.write"
+              },
+              "isActive": true
+            },
+            {
+              "role": {
+                "code": "CONTADOR"
+              },
+              "permission": {
+                "code": "concepts.read"
+              },
+              "isActive": true
+            },
+            {
+              "role": {
+                "code": "CONTADOR"
+              },
+              "permission": {
+                "code": "concepts.write"
+              },
+              "isActive": true
+            },
+            {
+              "role": {
+                "code": "CONTADOR"
+              },
+              "permission": {
+                "code": "transactions.read"
+              },
+              "isActive": true
+            },
+            {
+              "role": {
+                "code": "CONTADOR"
+              },
+              "permission": {
+                "code": "transactions.write"
+              },
+              "isActive": true
+            },
+            {
+              "role": {
+                "code": "CONTADOR"
+              },
+              "permission": {
+                "code": "roles.read"
+              },
+              "isActive": true
+            }
+          ]
+        }
+      },
+      "ok": true
+    },
+    {
+      "clave": "P1.6",
+      "titulo": "Lista del administrador",
+      "regla": "ADMINISTRADOR tiene los diez permisos",
+      "tipo": "graphql",
+      "query": "query {\n  rolePermissions(roleId: \"1\") {\n    role { code }\n    permission { code }\n    isActive\n  }\n}",
+      "respuesta": {
+        "data": {
+          "rolePermissions": [
+            {
+              "role": {
+                "code": "ADMINISTRADOR"
+              },
+              "permission": {
+                "code": "company.users.read"
+              },
+              "isActive": true
+            },
+            {
+              "role": {
+                "code": "ADMINISTRADOR"
+              },
+              "permission": {
+                "code": "company.users.write"
+              },
+              "isActive": true
+            },
+            {
+              "role": {
+                "code": "ADMINISTRADOR"
+              },
+              "permission": {
+                "code": "accounts.read"
+              },
+              "isActive": true
+            },
+            {
+              "role": {
+                "code": "ADMINISTRADOR"
+              },
+              "permission": {
+                "code": "accounts.write"
+              },
+              "isActive": true
+            },
+            {
+              "role": {
+                "code": "ADMINISTRADOR"
+              },
+              "permission": {
+                "code": "concepts.read"
+              },
+              "isActive": true
+            },
+            {
+              "role": {
+                "code": "ADMINISTRADOR"
+              },
+              "permission": {
+                "code": "concepts.write"
+              },
+              "isActive": true
+            },
+            {
+              "role": {
+                "code": "ADMINISTRADOR"
+              },
+              "permission": {
+                "code": "transactions.read"
+              },
+              "isActive": true
+            },
+            {
+              "role": {
+                "code": "ADMINISTRADOR"
+              },
+              "permission": {
+                "code": "transactions.write"
+              },
+              "isActive": true
+            },
+            {
+              "role": {
+                "code": "ADMINISTRADOR"
+              },
+              "permission": {
+                "code": "roles.read"
+              },
+              "isActive": true
+            },
+            {
+              "role": {
+                "code": "ADMINISTRADOR"
+              },
+              "permission": {
+                "code": "roles.write"
+              },
+              "isActive": true
+            }
+          ]
+        }
+      },
+      "ok": true
+    },
+    {
+      "clave": "P2.0",
+      "titulo": "Cuentas en MySQL antes de la Parte 2",
+      "regla": "Punto de partida para ver que un rechazo no guarda filas",
+      "tipo": "sql",
+      "query": "SELECT id, company_id, name FROM accounts WHERE company_id = 1;",
+      "respuesta": "+----+------------+--------------+\n| id | company_id | name         |\n+----+------------+--------------+\n|  1 |          1 | Caja general |\n+----+------------+--------------+",
+      "ok": true
+    },
+    {
+      "clave": "P2.1",
+      "titulo": "María intenta createAccount",
+      "regla": "El rol CAPTURISTA no tiene accounts.write: exigir_permiso rechaza antes del commit",
+      "tipo": "graphql",
+      "query": "mutation {\n  createAccount(\n    input: { actorCompanyUserId: \"4\", name: \"Cuenta de Maria\" }\n  ) {\n    id\n    companyId\n    name\n  }\n}",
+      "respuesta": {
+        "data": null,
+        "errors": [
+          {
+            "message": "El rol no tiene el permiso accounts.write",
+            "locations": [
+              {
+                "line": 2,
+                "column": 3
+              }
+            ],
+            "path": [
+              "createAccount"
+            ]
+          }
+        ]
+      },
+      "ok": true
+    },
+    {
+      "clave": "P2.2",
+      "titulo": "José intenta createAccount",
+      "regla": "José tiene el mismo rol que María y recibe el mismo rechazo",
+      "tipo": "graphql",
+      "query": "mutation {\n  createAccount(\n    input: { actorCompanyUserId: \"5\", name: \"Cuenta de Jose\" }\n  ) {\n    id\n    companyId\n    name\n  }\n}",
+      "respuesta": {
+        "data": null,
+        "errors": [
+          {
+            "message": "El rol no tiene el permiso accounts.write",
+            "locations": [
+              {
+                "line": 2,
+                "column": 3
+              }
+            ],
+            "path": [
+              "createAccount"
+            ]
+          }
+        ]
+      },
+      "ok": true
+    },
+    {
+      "clave": "P2.2b",
+      "titulo": "Las cuentas no cambiaron tras los rechazos",
+      "regla": "Un rechazo no guarda la fila: no hubo commit",
+      "tipo": "sql",
+      "query": "SELECT id, company_id, name FROM accounts WHERE company_id = 1;",
+      "respuesta": "+----+------------+--------------+\n| id | company_id | name         |\n+----+------------+--------------+\n|  1 |          1 | Caja general |\n+----+------------+--------------+",
+      "ok": true
+    },
+    {
+      "clave": "P2.3",
+      "titulo": "Ana agrega accounts.write al rol CAPTURISTA",
+      "regla": "El cambio se hace una sola vez, en el rol, por alguien con roles.write",
+      "tipo": "graphql",
+      "query": "mutation {\n  assignPermissionToRole(\n    input: {\n      actorCompanyUserId: \"1\"\n      roleId: \"3\"\n      permissionId: \"4\"\n    }\n  ) {\n    role { code }\n    permission { code }\n    isActive\n  }\n}",
+      "respuesta": {
+        "data": {
+          "assignPermissionToRole": {
+            "role": {
+              "code": "CAPTURISTA"
+            },
+            "permission": {
+              "code": "accounts.write"
+            },
+            "isActive": true
+          }
+        }
+      },
+      "ok": true
+    },
+    {
+      "clave": "P2.3b",
+      "titulo": "Lista del capturista después del cambio",
+      "regla": "La lista del rol ya incluye accounts.write",
+      "tipo": "graphql",
+      "query": "query {\n  rolePermissions(roleId: \"3\") {\n    role { code }\n    permission { code }\n    isActive\n  }\n}",
+      "respuesta": {
+        "data": {
+          "rolePermissions": [
+            {
+              "role": {
+                "code": "CAPTURISTA"
+              },
+              "permission": {
+                "code": "accounts.read"
+              },
+              "isActive": true
+            },
+            {
+              "role": {
+                "code": "CAPTURISTA"
+              },
+              "permission": {
+                "code": "accounts.write"
+              },
+              "isActive": true
+            },
+            {
+              "role": {
+                "code": "CAPTURISTA"
+              },
+              "permission": {
+                "code": "concepts.read"
+              },
+              "isActive": true
+            },
+            {
+              "role": {
+                "code": "CAPTURISTA"
+              },
+              "permission": {
+                "code": "transactions.read"
+              },
+              "isActive": true
+            },
+            {
+              "role": {
+                "code": "CAPTURISTA"
+              },
+              "permission": {
+                "code": "transactions.write"
+              },
+              "isActive": true
+            }
+          ]
+        }
+      },
+      "ok": true
+    },
+    {
+      "clave": "P2.4",
+      "titulo": "María crea una cuenta después del cambio",
+      "regla": "María recibe el permiso nuevo por su rol",
+      "tipo": "graphql",
+      "query": "mutation {\n  createAccount(\n    input: { actorCompanyUserId: \"4\", name: \"Cuenta de Maria\" }\n  ) {\n    id\n    companyId\n    name\n  }\n}",
+      "respuesta": {
+        "data": {
+          "createAccount": {
+            "id": "2",
+            "companyId": "1",
+            "name": "Cuenta de Maria"
+          }
+        }
+      },
+      "ok": true
+    },
+    {
+      "clave": "P2.5",
+      "titulo": "José crea una cuenta después del cambio",
+      "regla": "José también puede y no se editó su ficha: el permiso vive en el rol",
+      "tipo": "graphql",
+      "query": "mutation {\n  createAccount(\n    input: { actorCompanyUserId: \"5\", name: \"Cuenta de Jose\" }\n  ) {\n    id\n    companyId\n    name\n  }\n}",
+      "respuesta": {
+        "data": {
+          "createAccount": {
+            "id": "3",
+            "companyId": "1",
+            "name": "Cuenta de Jose"
+          }
+        }
+      },
+      "ok": true
+    },
+    {
+      "clave": "P2.6",
+      "titulo": "Ana quita accounts.write del rol CAPTURISTA",
+      "regla": "removePermissionFromRole desactiva la pareja",
+      "tipo": "graphql",
+      "query": "mutation {\n  removePermissionFromRole(\n    actorCompanyUserId: \"1\"\n    roleId: \"3\"\n    permissionId: \"4\"\n  )\n}",
+      "respuesta": {
+        "data": {
+          "removePermissionFromRole": true
+        }
+      },
+      "ok": true
+    },
+    {
+      "clave": "P2.6b",
+      "titulo": "La pareja CAPTURISTA / accounts.write queda inactiva en MySQL",
+      "regla": "La fila sigue en role_permissions con is_active = 0, no se borró",
+      "tipo": "sql",
+      "query": "SELECT rp.id, r.code AS rol, p.code AS permiso, rp.is_active\nFROM role_permissions rp\nJOIN roles r ON r.id = rp.role_id\nJOIN permissions p ON p.id = rp.permission_id\nWHERE r.code = 'CAPTURISTA'\nORDER BY p.code;",
+      "respuesta": "+----+------------+--------------------+-----------+\n| id | rol        | permiso            | is_active |\n+----+------------+--------------------+-----------+\n| 19 | CAPTURISTA | accounts.read      |         1 |\n| 27 | CAPTURISTA | accounts.write     |         0 |\n| 20 | CAPTURISTA | concepts.read      |         1 |\n| 21 | CAPTURISTA | transactions.read  |         1 |\n| 22 | CAPTURISTA | transactions.write |         1 |\n+----+------------+--------------------+-----------+",
+      "ok": true
+    },
+    {
+      "clave": "P2.7a",
+      "titulo": "María vuelve a recibir rechazo",
+      "regla": "Al quitar el permiso del rol María deja de poder",
+      "tipo": "graphql",
+      "query": "mutation {\n  createAccount(\n    input: { actorCompanyUserId: \"4\", name: \"Otra cuenta de Maria\" }\n  ) {\n    id\n    companyId\n    name\n  }\n}",
+      "respuesta": {
+        "data": null,
+        "errors": [
+          {
+            "message": "El rol no tiene el permiso accounts.write",
+            "locations": [
+              {
+                "line": 2,
+                "column": 3
+              }
+            ],
+            "path": [
+              "createAccount"
+            ]
+          }
+        ]
+      },
+      "ok": true
+    },
+    {
+      "clave": "P2.7b",
+      "titulo": "José vuelve a recibir rechazo",
+      "regla": "José también queda fuera con el mismo cambio en el rol",
+      "tipo": "graphql",
+      "query": "mutation {\n  createAccount(\n    input: { actorCompanyUserId: \"5\", name: \"Otra cuenta de Jose\" }\n  ) {\n    id\n    companyId\n    name\n  }\n}",
+      "respuesta": {
+        "data": null,
+        "errors": [
+          {
+            "message": "El rol no tiene el permiso accounts.write",
+            "locations": [
+              {
+                "line": 2,
+                "column": 3
+              }
+            ],
+            "path": [
+              "createAccount"
+            ]
+          }
+        ]
+      },
+      "ok": true
+    },
+    {
+      "clave": "P3.0",
+      "titulo": "Movimientos antes del intento de Pedro",
+      "regla": "Conteo de referencia",
+      "tipo": "sql",
+      "query": "SELECT COUNT(*) AS movimientos FROM transactions WHERE company_id = 1;",
+      "respuesta": "+-------------+\n| movimientos |\n+-------------+\n|           0 |\n+-------------+",
+      "ok": true
+    },
+    {
+      "clave": "P3.1",
+      "titulo": "Pedro (consulta) intenta createTransaction",
+      "regla": "CONSULTA no tiene transactions.write: se rechaza",
+      "tipo": "graphql",
+      "query": "mutation {\n  createTransaction(\n    input: {\n      actorCompanyUserId: \"6\"\n      accountId: \"1\"\n      conceptId: \"1\"\n      amount: \"350.00\"\n      description: \"Venta de Pedro\"\n    }\n  ) {\n    id\n    type\n    amount\n    capturedBy\n  }\n}",
+      "respuesta": {
+        "data": null,
+        "errors": [
+          {
+            "message": "El rol no tiene el permiso transactions.write",
+            "locations": [
+              {
+                "line": 2,
+                "column": 3
+              }
+            ],
+            "path": [
+              "createTransaction"
+            ]
+          }
+        ]
+      },
+      "ok": true
+    },
+    {
+      "clave": "P3.1b",
+      "titulo": "Movimientos después del rechazo",
+      "regla": "La tabla de movimientos no ganó la fila",
+      "tipo": "sql",
+      "query": "SELECT COUNT(*) AS movimientos FROM transactions WHERE company_id = 1;",
+      "respuesta": "+-------------+\n| movimientos |\n+-------------+\n|           0 |\n+-------------+",
+      "ok": true
+    },
+    {
+      "clave": "P3.2",
+      "titulo": "Ana usa assignRole para dejar a Pedro como CAPTURISTA",
+      "regla": "assignRole desactiva el rol anterior y deja uno solo activo",
+      "tipo": "graphql",
+      "query": "mutation {\n  assignRole(\n    input: {\n      actorCompanyUserId: \"1\"\n      companyUserId: \"6\"\n      roleId: \"3\"\n    }\n  ) {\n    companyUser {\n      user { name }\n      role { code }\n    }\n    role { code }\n    isActive\n  }\n}",
+      "respuesta": {
+        "data": {
+          "assignRole": {
+            "companyUser": {
+              "user": {
+                "name": "Pedro"
+              },
+              "role": {
+                "code": "CAPTURISTA"
+              }
+            },
+            "role": {
+              "code": "CAPTURISTA"
+            },
+            "isActive": true
+          }
+        }
+      },
+      "ok": true
+    },
+    {
+      "clave": "P3.3",
+      "titulo": "Pedro registra el movimiento ya como capturista",
+      "regla": "Su lista nueva es la del puesto nuevo",
+      "tipo": "graphql",
+      "query": "mutation {\n  createTransaction(\n    input: {\n      actorCompanyUserId: \"6\"\n      accountId: \"1\"\n      conceptId: \"1\"\n      amount: \"350.00\"\n      description: \"Venta de Pedro\"\n    }\n  ) {\n    id\n    type\n    amount\n    capturedBy\n  }\n}",
+      "respuesta": {
+        "data": {
+          "createTransaction": {
+            "id": "1",
+            "type": "INCOME",
+            "amount": 350,
+            "capturedBy": "6"
+          }
+        }
+      },
+      "ok": true
+    },
+    {
+      "clave": "P3.4",
+      "titulo": "Lista del contador después del cambio de Pedro",
+      "regla": "Cambiar el puesto de Pedro no tocó la lista del contador",
+      "tipo": "graphql",
+      "query": "query {\n  rolePermissions(roleId: \"2\") {\n    role { code }\n    permission { code }\n    isActive\n  }\n}",
+      "respuesta": {
+        "data": {
+          "rolePermissions": [
+            {
+              "role": {
+                "code": "CONTADOR"
+              },
+              "permission": {
+                "code": "company.users.read"
+              },
+              "isActive": true
+            },
+            {
+              "role": {
+                "code": "CONTADOR"
+              },
+              "permission": {
+                "code": "accounts.read"
+              },
+              "isActive": true
+            },
+            {
+              "role": {
+                "code": "CONTADOR"
+              },
+              "permission": {
+                "code": "accounts.write"
+              },
+              "isActive": true
+            },
+            {
+              "role": {
+                "code": "CONTADOR"
+              },
+              "permission": {
+                "code": "concepts.read"
+              },
+              "isActive": true
+            },
+            {
+              "role": {
+                "code": "CONTADOR"
+              },
+              "permission": {
+                "code": "concepts.write"
+              },
+              "isActive": true
+            },
+            {
+              "role": {
+                "code": "CONTADOR"
+              },
+              "permission": {
+                "code": "transactions.read"
+              },
+              "isActive": true
+            },
+            {
+              "role": {
+                "code": "CONTADOR"
+              },
+              "permission": {
+                "code": "transactions.write"
+              },
+              "isActive": true
+            },
+            {
+              "role": {
+                "code": "CONTADOR"
+              },
+              "permission": {
+                "code": "roles.read"
+              },
+              "isActive": true
+            }
+          ]
+        }
+      },
+      "ok": true
+    },
+    {
+      "clave": "P3.4b",
+      "titulo": "Luis sigue pudiendo crear una cuenta",
+      "regla": "Luis conserva accounts.write porque su rol no cambió",
+      "tipo": "graphql",
+      "query": "mutation {\n  createAccount(\n    input: { actorCompanyUserId: \"3\", name: \"Bancos\" }\n  ) {\n    id\n    companyId\n    name\n  }\n}",
+      "respuesta": {
+        "data": {
+          "createAccount": {
+            "id": "4",
+            "companyId": "1",
+            "name": "Bancos"
+          }
+        }
+      },
+      "ok": true
+    },
+    {
+      "clave": "P3.5",
+      "titulo": "Lista de consulta después del cambio de Pedro",
+      "regla": "CONSULTA sigue sin permisos .write; Pedro ya no la usa pero la lista no cambió",
+      "tipo": "graphql",
+      "query": "query {\n  rolePermissions(roleId: \"4\") {\n    role { code }\n    permission { code }\n    isActive\n  }\n}",
+      "respuesta": {
+        "data": {
+          "rolePermissions": [
+            {
+              "role": {
+                "code": "CONSULTA"
+              },
+              "permission": {
+                "code": "company.users.read"
+              },
+              "isActive": true
+            },
+            {
+              "role": {
+                "code": "CONSULTA"
+              },
+              "permission": {
+                "code": "accounts.read"
+              },
+              "isActive": true
+            },
+            {
+              "role": {
+                "code": "CONSULTA"
+              },
+              "permission": {
+                "code": "concepts.read"
+              },
+              "isActive": true
+            },
+            {
+              "role": {
+                "code": "CONSULTA"
+              },
+              "permission": {
+                "code": "transactions.read"
+              },
+              "isActive": true
+            }
+          ]
+        }
+      },
+      "ok": true
+    },
+    {
+      "clave": "P3.6",
+      "titulo": "Roles de Pedro en company_user_roles",
+      "regla": "Pedro tiene un solo rol activo; el anterior queda inactivo, no se borra",
+      "tipo": "sql",
+      "query": "SELECT cur.id, r.code AS rol, cur.is_active\nFROM company_user_roles cur\nJOIN roles r ON r.id = cur.role_id\nWHERE cur.company_user_id = 6;",
+      "respuesta": "+----+------------+-----------+\n| id | rol        | is_active |\n+----+------------+-----------+\n|  6 | CONSULTA   |         0 |\n|  7 | CAPTURISTA |         1 |\n+----+------------+-----------+",
+      "ok": true
+    },
+    {
+      "clave": "P4.1",
+      "titulo": "José intenta agregar concepts.write al rol CONSULTA",
+      "regla": "Cambiar la lista pide roles.write y el capturista no lo tiene",
+      "tipo": "graphql",
+      "query": "mutation {\n  assignPermissionToRole(\n    input: {\n      actorCompanyUserId: \"5\"\n      roleId: \"4\"\n      permissionId: \"6\"\n    }\n  ) {\n    role { code }\n    permission { code }\n    isActive\n  }\n}",
+      "respuesta": {
+        "data": null,
+        "errors": [
+          {
+            "message": "El rol no tiene el permiso roles.write",
+            "locations": [
+              {
+                "line": 2,
+                "column": 3
+              }
+            ],
+            "path": [
+              "assignPermissionToRole"
+            ]
+          }
+        ]
+      },
+      "ok": true
+    },
+    {
+      "clave": "P4.2",
+      "titulo": "La lista activa de CONSULTA en MySQL no cambió",
+      "regla": "El rechazo no dejó ninguna fila nueva",
+      "tipo": "sql",
+      "query": "SELECT r.code AS rol, p.code AS permiso, rp.is_active\nFROM role_permissions rp\nJOIN roles r ON r.id = rp.role_id\nJOIN permissions p ON p.id = rp.permission_id\nWHERE r.code = 'CONSULTA' AND rp.is_active = 1\nORDER BY p.code;",
+      "respuesta": "+----------+--------------------+-----------+\n| rol      | permiso            | is_active |\n+----------+--------------------+-----------+\n| CONSULTA | accounts.read      |         1 |\n| CONSULTA | company.users.read |         1 |\n| CONSULTA | concepts.read      |         1 |\n| CONSULTA | transactions.read  |         1 |\n+----------+--------------------+-----------+",
+      "ok": true
+    },
+    {
+      "clave": "P4.3",
+      "titulo": "Ana hace la misma operación",
+      "regla": "El administrador sí tiene roles.write",
+      "tipo": "graphql",
+      "query": "mutation {\n  assignPermissionToRole(\n    input: {\n      actorCompanyUserId: \"1\"\n      roleId: \"4\"\n      permissionId: \"6\"\n    }\n  ) {\n    role { code }\n    permission { code }\n    isActive\n  }\n}",
+      "respuesta": {
+        "data": {
+          "assignPermissionToRole": {
+            "role": {
+              "code": "CONSULTA"
+            },
+            "permission": {
+              "code": "concepts.write"
+            },
+            "isActive": true
+          }
+        }
+      },
+      "ok": true
+    },
+    {
+      "clave": "P4.4",
+      "titulo": "Ana quita concepts.write de CONSULTA",
+      "regla": "Consulta vuelve a quedar sin permisos de escritura",
+      "tipo": "graphql",
+      "query": "mutation {\n  removePermissionFromRole(\n    actorCompanyUserId: \"1\"\n    roleId: \"4\"\n    permissionId: \"6\"\n  )\n}",
+      "respuesta": {
+        "data": {
+          "removePermissionFromRole": true
+        }
+      },
+      "ok": true
+    },
+    {
+      "clave": "P4.4b",
+      "titulo": "Lista activa de CONSULTA al final",
+      "regla": "Solo quedan los cuatro permisos .read",
+      "tipo": "sql",
+      "query": "SELECT r.code AS rol, p.code AS permiso, rp.is_active\nFROM role_permissions rp\nJOIN roles r ON r.id = rp.role_id\nJOIN permissions p ON p.id = rp.permission_id\nWHERE r.code = 'CONSULTA' AND rp.is_active = 1\nORDER BY p.code;",
+      "respuesta": "+----------+--------------------+-----------+\n| rol      | permiso            | is_active |\n+----------+--------------------+-----------+\n| CONSULTA | accounts.read      |         1 |\n| CONSULTA | company.users.read |         1 |\n| CONSULTA | concepts.read      |         1 |\n| CONSULTA | transactions.read  |         1 |\n+----------+--------------------+-----------+",
+      "ok": true
+    },
+    {
+      "clave": "PX.1",
+      "titulo": "Rosa (admin de otra empresa) crea una cuenta",
+      "regla": "La cuenta se guarda en la empresa de Rosa, la empresa sale de su membresía y no del cliente",
+      "tipo": "graphql",
+      "query": "mutation {\n  createAccount(\n    input: { actorCompanyUserId: \"2\", name: \"Caja Kanasin\" }\n  ) {\n    id\n    companyId\n    name\n  }\n}",
+      "respuesta": {
+        "data": {
+          "createAccount": {
+            "id": "5",
+            "companyId": "2",
+            "name": "Caja Kanasin"
+          }
+        }
+      },
+      "ok": true
+    },
+    {
+      "clave": "PX.2",
+      "titulo": "Ana consulta las cuentas",
+      "regla": "Ana solo ve las cuentas de su empresa; la de Rosa no aparece",
+      "tipo": "graphql",
+      "query": "query {\n  accounts(actorCompanyUserId: \"1\") {\n    id\n    companyId\n    name\n  }\n}",
+      "respuesta": {
+        "data": {
+          "accounts": [
+            {
+              "id": "1",
+              "companyId": "1",
+              "name": "Caja general"
+            },
+            {
+              "id": "2",
+              "companyId": "1",
+              "name": "Cuenta de Maria"
+            },
+            {
+              "id": "3",
+              "companyId": "1",
+              "name": "Cuenta de Jose"
+            },
+            {
+              "id": "4",
+              "companyId": "1",
+              "name": "Bancos"
+            }
+          ]
+        }
+      },
+      "ok": true
+    },
+    {
+      "clave": "PF.1",
+      "titulo": "SELECT final de role_permissions",
+      "regla": "La lista de los cuatro roles coincide con la tabla del documento",
+      "tipo": "sql",
+      "query": "SELECT r.code AS rol, p.code AS permiso, rp.is_active\nFROM role_permissions rp\nJOIN roles r ON r.id = rp.role_id\nJOIN permissions p ON p.id = rp.permission_id\nORDER BY r.code, p.code;",
+      "respuesta": "+---------------+---------------------+-----------+\n| rol           | permiso             | is_active |\n+---------------+---------------------+-----------+\n| ADMINISTRADOR | accounts.read       |         1 |\n| ADMINISTRADOR | accounts.write      |         1 |\n| ADMINISTRADOR | company.users.read  |         1 |\n| ADMINISTRADOR | company.users.write |         1 |\n| ADMINISTRADOR | concepts.read       |         1 |\n| ADMINISTRADOR | concepts.write      |         1 |\n| ADMINISTRADOR | roles.read          |         1 |\n| ADMINISTRADOR | roles.write         |         1 |\n| ADMINISTRADOR | transactions.read   |         1 |\n| ADMINISTRADOR | transactions.write  |         1 |\n| CAPTURISTA    | accounts.read       |         1 |\n| CAPTURISTA    | accounts.write      |         0 |\n| CAPTURISTA    | concepts.read       |         1 |\n| CAPTURISTA    | transactions.read   |         1 |\n| CAPTURISTA    | transactions.write  |         1 |\n| CONSULTA      | accounts.read       |         1 |\n| CONSULTA      | company.users.read  |         1 |\n| CONSULTA      | concepts.read       |         1 |\n| CONSULTA      | concepts.write      |         0 |\n| CONSULTA      | transactions.read   |         1 |\n| CONTADOR      | accounts.read       |         1 |\n| CONTADOR      | accounts.write      |         1 |\n| CONTADOR      | company.users.read  |         1 |\n| CONTADOR      | concepts.read       |         1 |\n| CONTADOR      | concepts.write      |         1 |\n| CONTADOR      | roles.read          |         1 |\n| CONTADOR      | transactions.read   |         1 |\n| CONTADOR      | transactions.write  |         1 |\n+---------------+---------------------+-----------+",
+      "ok": true
+    },
+    {
+      "clave": "PF.2",
+      "titulo": "Permisos activos por rol",
+      "regla": "ADMINISTRADOR 10, CONTADOR 8, CAPTURISTA 4, CONSULTA 4",
+      "tipo": "sql",
+      "query": "SELECT r.code AS rol, SUM(rp.is_active) AS activos, COUNT(*) AS filas\nFROM role_permissions rp JOIN roles r ON r.id = rp.role_id\nGROUP BY r.id, r.code ORDER BY r.id;",
+      "respuesta": "+---------------+---------+-------+\n| rol           | activos | filas |\n+---------------+---------+-------+\n| ADMINISTRADOR |      10 |    10 |\n| CONTADOR      |       8 |     8 |\n| CAPTURISTA    |       4 |     5 |\n| CONSULTA      |       4 |     5 |\n+---------------+---------+-------+",
+      "ok": true
+    },
+    {
+      "clave": "PF.3",
+      "titulo": "Reinicio del servidor sin duplicados",
+      "regla": "Al arrancar otra vez no se duplicó nada: 4 roles, 10 permisos y 26 parejas activas (10+8+4+4)",
+      "tipo": "sql",
+      "query": "SELECT (SELECT COUNT(*) FROM roles) AS roles, (SELECT COUNT(*) FROM permissions) AS permisos, (SELECT COUNT(*) FROM role_permissions) AS filas_role_permissions, (SELECT SUM(is_active) FROM role_permissions) AS activas;",
+      "respuesta": "+-------+----------+------------------------+---------+\n| roles | permisos | filas_role_permissions | activas |\n+-------+----------+------------------------+---------+\n|     4 |       10 |                     28 |      26 |\n+-------+----------+------------------------+---------+",
+      "ok": true
+    }
+  ]
+}

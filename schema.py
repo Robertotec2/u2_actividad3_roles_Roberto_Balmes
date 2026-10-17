@@ -481,8 +481,15 @@ class Mutation:
             ).first()
             if ya:
                 raise ValueError("Ese rol ya tiene ese permiso activo")
-            rp = RolePermissionModel(role_id=role_id, permission_id=perm_id)
-            db.add(rp)
+            rp = db.query(RolePermissionModel).filter(
+                RolePermissionModel.role_id == role_id,
+                RolePermissionModel.permission_id == perm_id,
+            ).first()
+            if rp:
+                rp.is_active = True
+            else:
+                rp = RolePermissionModel(role_id=role_id, permission_id=perm_id)
+                db.add(rp)
             db.commit()
             db.refresh(rp)
             return a_rp(rp)

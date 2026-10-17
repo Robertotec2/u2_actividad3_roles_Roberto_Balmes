@@ -39,3 +39,32 @@ uvicorn main:app --reload
 | 5 | Mario Chi | Papeleria El Cuaderno | CONSULTA |
 
 Integrantes: Roberto Balmes Solis, David Romero
+
+## Actividad 4 - Configuracion de permisos para diferentes roles
+
+Mismo proyecto. Solo cambio `assignPermissionToRole`: si la pareja rol-permiso ya existia inactiva la vuelve a activar en vez de crear otra fila.
+
+Para correr las pruebas (con la base vacia y el servidor arriba):
+
+```
+python pruebas/actividad4.py
+```
+
+Arma la empresa con Ana (ADMINISTRADOR), Luis (CONTADOR), Maria y Jose (CAPTURISTA) y Pedro (CONSULTA) y corre las 4 partes:
+
+1. Revisa la lista de los 4 roles contra la tabla
+2. Agrega `accounts.write` a CAPTURISTA, Maria y Jose crean cuentas, se quita y los dos vuelven a ser rechazados (la fila queda `is_active = 0`)
+3. Pedro es rechazado como CONSULTA, `assignRole` lo pasa a CAPTURISTA y ya registra el movimiento; CONTADOR y CONSULTA no cambian
+4. Jose no puede cambiar la lista, Ana si
+
+Los resultados quedan en `pruebas/resultados.json`. Si tu MySQL no esta en el puerto 3307 cambia `MYSQL_CMD`.
+
+SELECT final:
+
+```sql
+SELECT r.code AS rol, p.code AS permiso, rp.is_active
+FROM role_permissions rp
+JOIN roles r ON r.id = rp.role_id
+JOIN permissions p ON p.id = rp.permission_id
+ORDER BY r.code, p.code;
+```
