@@ -30,8 +30,8 @@
     "ok": true,
     "obtenido": {
       "createTransaction": {
-        "id": "3",
-        "capturedBy": "10"
+        "id": "77",
+        "capturedBy": "21"
       }
     },
     "regla": "El token dice quien es; su rol CAPTURISTA tiene transactions.write"
@@ -51,8 +51,8 @@
     "ok": true,
     "obtenido": {
       "createAccount": {
-        "id": "7",
-        "companyId": "3"
+        "id": "37",
+        "companyId": "17"
       }
     },
     "regla": "La misma ruta que rechazo a Maria acepta a Luis porque CONTADOR tiene accounts.write"
@@ -87,8 +87,8 @@
     "ok": true,
     "obtenido": {
       "createTransaction": {
-        "id": "4",
-        "capturedBy": "11"
+        "id": "78",
+        "capturedBy": "22"
       }
     },
     "regla": "El rol no viaja en el token: se lee otra vez en MySQL en cada peticion"
@@ -98,7 +98,7 @@
     "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6Ik...(recortado)",
     "ruta": "accounts / createTransaction",
     "ok": true,
-    "obtenido": "accounts con el token de Rosa: []; usar la cuenta 6: La cuenta o el concepto no son de tu empresa",
+    "obtenido": "accounts con el token de Rosa: []; usar la cuenta 36: La cuenta o el concepto no son de tu empresa",
     "regla": "El token vale para una sola empresa; no lee ni usa las cuentas de otra"
   },
   {

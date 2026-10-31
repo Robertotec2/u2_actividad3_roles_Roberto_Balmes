@@ -154,3 +154,60 @@ python pruebas/ver_token.py TOKEN      # muestra solo los datos legibles del tok
 `pruebas/jwt_lab.py` tiene las ayudas de las pruebas (peticiones con encabezado, token alterado y token vencido firmado con el `JWT_SECRET` del laboratorio).
 
 Nota: `pruebas/actividad4.py`, `pruebas/actividad5.py` y `actividad5/operaciones.graphql` usan `actorCompanyUserId` y corresponden al estado del proyecto en esas actividades; desde la 6 ese argumento ya no existe.
+
+## Actividad 7 - Balances por cuenta y balance general
+
+Integrantes: Roberto Balmes Solis, David Romero
+
+### Que se agrego
+
+- `createTransaction` acepta `transactionDate` opcional (DateTime con zona, por ejemplo `2026-10-27T12:00:00Z`). Se normaliza a UTC; si no viene se usa la hora del servidor. `capturedAt` siempre lo pone el servidor. `Transaction` expone `transactionDate`, `capturedAt` e `isActive`.
+- El monto se valida en Python con `Decimal`: positivo, finito, con dos decimales como maximo (no se redondea) y que quepa en `Numeric(12, 2)`. Los importes se devuelven con el escalar `Decimal` como texto con dos decimales (`"1800.00"`).
+- `balances.py` calcula los balances con una sola consulta agregada: parte de `accounts`, hace `LEFT JOIN` a `transactions` con los filtros del movimiento en el `ON` (activo, de la misma empresa, `transaction_date < fin`) y usa `SUM(CASE ...)` para saldo inicial, ingresos y egresos. Asi una cuenta sin movimientos sale con ceros. No se une a `account_concepts`, para no duplicar importes. El general suma en Python las mismas filas del detalle.
+- Queries `accountBalance(accountId, fromDate, toDate)` y `generalBalance(fromDate, toDate)`. Las dos validan el token, piden `accounts.read` y `transactions.read` y toman `companyId` de la membresia del token. Una cuenta ajena y una inexistente responden igual: `Cuenta no disponible`.
+- Periodo: `fromDate` y `toDate` son dias completos en UTC. Saldo inicial: `transaction_date < fromDate 00:00`. Periodo: `>= fromDate 00:00` y `< (toDate + 1 dia) 00:00`. `fromDate > toDate` da error.
+- Se suma por `transaction_date`, nunca por `captured_at` ni `created_at`. Los movimientos inactivos no cuentan. Las cuentas desactivadas siguen en el balance con `isActive: false`.
+- Todas las cantidades son MXN (`currency: "MXN"`); el proyecto no tiene campo de moneda.
+- Consultar no guarda nada: no hay tabla de balances. La columna `accounts.balance` de las actividades anteriores se conserva por compatibilidad, pero los balances no la usan.
+
+### Migracion
+
+`main.py` agrega al arrancar, si faltan, las columnas `transaction_date`, `captured_at` e `is_active` en `transactions` y el indice `(account_id, transaction_date)`. Las filas previas toman `created_at` como fecha de operacion y de captura. Las fechas se guardan sin zona y por convencion son UTC. SQL equivalente: `migraciones/002_transaction_dates.sql`.
+
+### Preparar datos y probar
+
+Con el servidor arriba (`docker compose up --build`):
+
+```
+python pruebas/actividad7_datos.py          # crea la empresa con Banco, Caja y Ahorro y escribe actividad7/variables/*.json
+python -m unittest -v tests.test_balances    # B01, B04, B06 y B12 automatizados (solo biblioteca estandar)
+python pruebas/actividad7.py                 # B01 a B15 -> actividad7/evidencias.md y pruebas/resultados_actividad7.json
+```
+
+`pruebas/actividad7.py` usa SQL para B07 y B08; si MySQL no esta en el puerto 3307 del equipo, cambiar `MYSQL_CMD`, por ejemplo:
+
+```
+MYSQL_CMD="docker compose exec -T mysql mysql -uingresos -pingresos ingresos" python pruebas/actividad7.py
+```
+
+Cada caso adicional usa su propia empresa, asi el conjunto de referencia no cambia; B07, B08 y B14 restauran el estado al terminar. La preparacion y la restauracion manual estan en `actividad7/preparacion.sql`. Para empezar de cero: `docker compose down -v`.
+
+### Archivos en `actividad7/`
+
+| Archivo | Que es |
+|---|---|
+| `operaciones.graphql` | `Entrar`, `BalanceDeUnaCuenta`, `BalanceDeLaEmpresa`, `RegistrarConFecha` |
+| `variables/` | `entrar.json`, `balance_banco.json`, `balance_caja.json`, `balance_ahorro.json`, `balance_banco_28.json`, `balance_general.json`, `captura_con_fecha.json` (este agrega un egreso a Banco: usarlo despues de guardar la evidencia de referencia) |
+| `preparacion.sql` | Preparacion y restauracion de B07/B08 y una comprobacion manual en SQL |
+| `evidencias.md` | B01 a B15 con el resultado obtenido y la regla comprobada |
+| `salida_tests.txt` | Salida de `python -m unittest -v tests.test_balances` |
+| `explicacion.md` | Saldo inicial, profit, saldo final y numeros rojos con los numeros de Banco y Caja |
+
+### Tabla de referencia (26 al 30 de octubre de 2026)
+
+| Cuenta | Saldo inicial | Ingresos | Egresos | Profit | Saldo final | En rojo |
+|---|---|---|---|---|---|---|
+| Banco | 1,000.00 | 3,000.00 | 2,200.00 | 800.00 | 1,800.00 | No |
+| Caja | 0.00 | 500.00 | 700.00 | -200.00 | -200.00 | Si |
+| Ahorro | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 | No |
+| General | 1,000.00 | 3,500.00 | 2,900.00 | 600.00 | 1,600.00 | No (`accountsInRed: 1`) |

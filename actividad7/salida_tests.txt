@@ -1,0 +1,11 @@
+test_cada_cuenta_coincide_con_la_tabla (tests.test_balances.B01Referencia.test_cada_cuenta_coincide_con_la_tabla) ... ok
+test_consultar_no_cambia_filas (tests.test_balances.B01Referencia.test_consultar_no_cambia_filas) ... ok
+test_general_coincide_y_cuadra_con_el_detalle (tests.test_balances.B01Referencia.test_general_coincide_y_cuadra_con_el_detalle) ... ok
+test_limites_de_dias_completos_en_utc (tests.test_balances.B04Limites.test_limites_de_dias_completos_en_utc) ... ok
+test_decimales_exactos (tests.test_balances.B06Centavos.test_decimales_exactos) ... ok
+test_token_de_a_no_ve_cuentas_de_b (tests.test_balances.B12OtraEmpresa.test_token_de_a_no_ve_cuentas_de_b) ... ok
+
+----------------------------------------------------------------------
+Ran 6 tests in 9.598s
+
+OK

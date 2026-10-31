@@ -1,9 +1,14 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Numeric, DateTime, UniqueConstraint
+from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Numeric, DateTime, UniqueConstraint, Index
 from sqlalchemy.orm import relationship
 
 from database import Base
+
+
+def ahora_utc() -> datetime:
+    # Las columnas DateTime guardan fechas sin zona; por convencion todas estan en UTC
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 class CompanyModel(Base):
@@ -80,7 +85,12 @@ class TransactionModel(Base):
     type = Column(String(10), nullable=False)
     amount = Column(Numeric(12, 2), nullable=False)
     description = Column(String(255))
-    created_at = Column(DateTime, nullable=False, default=datetime.now)
+    created_at = Column(DateTime, nullable=False, default=ahora_utc)
+    transaction_date = Column(DateTime, nullable=False, default=ahora_utc)
+    captured_at = Column(DateTime, nullable=False, default=ahora_utc)
+    is_active = Column(Boolean, nullable=False, default=True)
+
+    __table_args__ = (Index("ix_transactions_account_date", "account_id", "transaction_date"),)
 
 
 class RoleModel(Base):

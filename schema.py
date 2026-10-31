@@ -1,6 +1,6 @@
 import hashlib
 import secrets
-from datetime import datetime
+from datetime import date, datetime, timezone
 from decimal import Decimal
 from enum import Enum
 from typing import Optional
@@ -8,6 +8,7 @@ from typing import Optional
 import strawberry
 
 from auth import crear_token, leer_actor
+from balances import CENTAVO, dinero, balance_cuenta, balance_general
 from configuracion import PREFIJOS, validar_propuesta, calcular_plan, aplicar_lista
 from database import SessionLocal
 from models import (
@@ -162,7 +163,7 @@ class Account:
     id: strawberry.ID
     company_id: strawberry.ID
     name: str
-    balance: float
+    balance: Decimal
     is_active: bool
 
 
@@ -191,9 +192,41 @@ class Transaction:
     concept_id: strawberry.ID
     captured_by: strawberry.ID
     type: TransactionType
-    amount: float
+    amount: Decimal
     description: Optional[str]
     created_at: datetime
+    transaction_date: datetime
+    captured_at: datetime
+    is_active: bool
+
+
+@strawberry.type
+class AccountBalance:
+    account_id: strawberry.ID
+    account_name: str
+    is_active: bool
+    opening_balance: Decimal
+    total_income: Decimal
+    total_expense: Decimal
+    profit: Decimal
+    closing_balance: Decimal
+    is_in_red: bool
+
+
+@strawberry.type
+class GeneralBalance:
+    company_id: strawberry.ID
+    currency: str
+    from_date: date
+    to_date: date
+    opening_balance: Decimal
+    total_income: Decimal
+    total_expense: Decimal
+    profit: Decimal
+    closing_balance: Decimal
+    is_in_red: bool
+    accounts_in_red: int
+    accounts: list[AccountBalance]
 
 
 @strawberry.type
@@ -228,7 +261,7 @@ def a_user(m): return User(id=m.id, name=m.name, email=m.email, is_active=m.is_a
 def a_role(m): return Role(id=m.id, code=m.code, name=m.name, description=m.description, is_active=m.is_active)
 def a_perm(m): return Permission(id=m.id, code=m.code, name=m.name, description=m.description, is_active=m.is_active)
 def a_rp(m): return RolePermission(id=m.id, role=a_role(m.role), permission=a_perm(m.permission), is_active=m.is_active)
-def a_account(m): return Account(id=m.id, company_id=m.company_id, name=m.name, balance=float(m.balance), is_active=m.is_active)
+def a_account(m): return Account(id=m.id, company_id=m.company_id, name=m.name, balance=dinero(m.balance), is_active=m.is_active)
 def a_concept(m): return Concept(id=m.id, company_id=m.company_id, name=m.name, type=TransactionType(m.type), is_active=m.is_active)
 def a_ac(m): return AccountConcept(id=m.id, account_id=m.account_id, concept_id=m.concept_id, is_active=m.is_active)
 
@@ -239,10 +272,47 @@ def a_cu(db, m):
                        is_active=m.is_active, role=a_role(r) if r else None)
 
 
+def utc(d):
+    # MySQL guarda la fecha sin zona; se devuelve marcada como UTC
+    return d.replace(tzinfo=timezone.utc) if d is not None else None
+
+
 def a_tx(m):
     return Transaction(id=m.id, company_id=m.company_id, account_id=m.account_id, concept_id=m.concept_id,
-                       captured_by=m.company_user_id, type=TransactionType(m.type), amount=float(m.amount),
-                       description=m.description, created_at=m.created_at)
+                       captured_by=m.company_user_id, type=TransactionType(m.type), amount=dinero(m.amount),
+                       description=m.description, created_at=utc(m.created_at),
+                       transaction_date=utc(m.transaction_date), captured_at=utc(m.captured_at),
+                       is_active=m.is_active)
+
+
+def leer_lector_balances(db, info):
+    # Los balances son datos de cuentas y de movimientos: se piden los dos permisos
+    actor_id = leer_actor(db, info)
+    exigir_permiso(db, actor_id, "accounts.read")
+    return exigir_permiso(db, actor_id, "transactions.read")
+
+
+MAXIMO = Decimal("9999999999.99")  # lo que cabe en Numeric(12, 2)
+
+
+def validar_monto(monto: Decimal) -> Decimal:
+    if not monto.is_finite():
+        raise ValueError("El monto tiene que ser un numero finito")
+    if monto <= 0:
+        raise ValueError("El monto tiene que ser mayor a cero")
+    if monto != monto.quantize(CENTAVO):
+        raise ValueError("El monto no puede tener mas de dos decimales")
+    if monto > MAXIMO:
+        raise ValueError("El monto es mayor al maximo permitido")
+    return monto.quantize(CENTAVO)
+
+
+def fecha_operacion(valor: Optional[datetime]) -> datetime:
+    if valor is None:
+        return datetime.now(timezone.utc).replace(tzinfo=None)
+    if valor.tzinfo is None:
+        raise ValueError("transactionDate tiene que llevar zona horaria, por ejemplo 2026-10-27T12:00:00Z")
+    return valor.astimezone(timezone.utc).replace(tzinfo=None)
 
 
 @strawberry.input
@@ -328,6 +398,7 @@ class CreateTransactionInput:
     concept_id: strawberry.ID
     amount: Decimal
     description: Optional[str] = None
+    transaction_date: Optional[datetime] = None
 
 
 @strawberry.type
@@ -414,6 +485,25 @@ class Query:
         with SessionLocal() as db:
             actor = exigir_permiso(db, leer_actor(db, info), "concepts.read")
             return [a_concept(c) for c in db.query(ConceptModel).filter(ConceptModel.company_id == actor.company_id).all()]
+
+    @strawberry.field
+    def account_balance(self, info: strawberry.Info, account_id: strawberry.ID,
+                        from_date: date, to_date: date) -> AccountBalance:
+        with SessionLocal() as db:
+            actor = leer_lector_balances(db, info)
+            try:
+                cuenta = int(account_id)
+            except ValueError:
+                raise ValueError("Cuenta no disponible")
+            return AccountBalance(**balance_cuenta(db, actor.company_id, cuenta, from_date, to_date))
+
+    @strawberry.field
+    def general_balance(self, info: strawberry.Info, from_date: date, to_date: date) -> GeneralBalance:
+        with SessionLocal() as db:
+            actor = leer_lector_balances(db, info)
+            g = balance_general(db, actor.company_id, from_date, to_date)
+            g["accounts"] = [AccountBalance(**c) for c in g["accounts"]]
+            return GeneralBalance(**g)
 
     @strawberry.field
     def transactions(self, info: strawberry.Info) -> list[Transaction]:
@@ -658,8 +748,8 @@ class Mutation:
     def create_transaction(self, input: CreateTransactionInput, info: strawberry.Info) -> Transaction:
         with SessionLocal() as db:
             actor = membresia_activa(db, leer_actor(db, info))
-            if input.amount <= 0:
-                raise ValueError("El monto tiene que ser mayor a cero")
+            monto = validar_monto(input.amount)
+            cuando = fecha_operacion(input.transaction_date)
             a = db.get(AccountModel, int(input.account_id))
             c = db.get(ConceptModel, int(input.concept_id))
             if a is None or c is None or a.company_id != actor.company_id or c.company_id != actor.company_id:
@@ -672,9 +762,10 @@ class Mutation:
                 raise ValueError("Ese concepto no esta permitido en esta cuenta")
             exigir_permiso(db, actor.id, "transactions.write")
             t = TransactionModel(company_id=actor.company_id, account_id=a.id, concept_id=c.id,
-                                 company_user_id=actor.id, type=c.type, amount=input.amount,
-                                 description=input.description)
-            a.balance = a.balance + input.amount if c.type == "INCOME" else a.balance - input.amount
+                                 company_user_id=actor.id, type=c.type, amount=monto,
+                                 description=input.description, transaction_date=cuando)
+            # captured_at lo pone el servidor (default); el cliente no lo elige
+            a.balance = a.balance + monto if c.type == "INCOME" else a.balance - monto
             db.add(t)
             db.commit()
             db.refresh(t)

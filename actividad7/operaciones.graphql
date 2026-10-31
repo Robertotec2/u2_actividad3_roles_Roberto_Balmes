@@ -1,0 +1,66 @@
+# Actividad 7 - Balances. Todas piden el encabezado
+#   Authorization: Bearer TOKEN_QUE_DEVOLVIO_LOGIN
+# Las variables estan en actividad7/variables/ (las escribe pruebas/actividad7_datos.py con los ids reales).
+
+# 1. Entrar y copiar el token (no pide encabezado)
+mutation Entrar($email: String!, $password: String!) {
+  login(input: {email: $email, password: $password}) {
+    tokenType
+    token
+    user {
+      name
+    }
+  }
+}
+
+# 2. Balance de una cuenta
+#   variables/balance_banco.json, balance_caja.json, balance_ahorro.json, balance_banco_28.json
+query BalanceDeUnaCuenta($accountId: ID!, $from: Date!, $to: Date!) {
+  accountBalance(accountId: $accountId, fromDate: $from, toDate: $to) {
+    accountId
+    accountName
+    isActive
+    openingBalance
+    totalIncome
+    totalExpense
+    profit
+    closingBalance
+    isInRed
+  }
+}
+
+# 3. Balance general de la empresa del token - variables/balance_general.json
+query BalanceDeLaEmpresa($from: Date!, $to: Date!) {
+  generalBalance(fromDate: $from, toDate: $to) {
+    companyId
+    currency
+    fromDate
+    toDate
+    openingBalance
+    totalIncome
+    totalExpense
+    profit
+    closingBalance
+    isInRed
+    accountsInRed
+    accounts {
+      accountId
+      accountName
+      isActive
+      closingBalance
+      isInRed
+    }
+  }
+}
+
+# 4. Captura con fecha de operacion (capturedAt lo pone el servidor)
+#   variables/captura_con_fecha.json
+mutation RegistrarConFecha($accountId: ID!, $conceptId: ID!, $amount: Decimal!, $date: DateTime) {
+  createTransaction(input: {accountId: $accountId, conceptId: $conceptId, amount: $amount, transactionDate: $date}) {
+    id
+    type
+    amount
+    transactionDate
+    capturedAt
+  }
+}
