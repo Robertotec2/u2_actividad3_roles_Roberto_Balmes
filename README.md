@@ -4,7 +4,11 @@ Unidad 2 Actividad 3. Se agregaron roles, permisos y la matriz de permisos por r
 
 ## Como correrlo
 
+Desde la actividad 6 hace falta el secreto del token en `.env` (no se sube a Git):
+
 ```
+cp .env.example .env
+python -c "import secrets; print(secrets.token_hex(32))"   # pegar el valor en JWT_SECRET
 docker compose up --build
 ```
 
@@ -15,6 +19,7 @@ Sin docker (con MySQL local):
 ```
 pip install -r requirements.txt
 set DATABASE_URL=mysql+pymysql://ingresos:ingresos@localhost:3306/ingresos
+set JWT_SECRET=el_valor_generado
 uvicorn main:app --reload
 ```
 
@@ -113,3 +118,39 @@ docker compose exec api python -m unittest -v tests.test_e07_rollback   # E07
 ```
 
 E08 con reinicio: aplicar `e08_lista_vacia.json`, `docker compose restart api` y revisar que CAPTURISTA siga con cero relaciones activas; luego restaurar con `e09_restaurar_s0.json`.
+
+## Actividad 6 - Control de acceso segun el rol
+
+`login(input: {email, password})` revisa el hash y, si coincide, firma un JWT HS256 de 30 minutos con solo `companyUserId`, `companyId` (copiado de la membresia) y `exp`. Regresa `AuthPayload { token tokenType user }`; `tokenType` es `"bearer"`. Si la persona tiene membresia en varias empresas se manda tambien `companyId` y se obtiene un token por empresa.
+
+El secreto se lee de la variable de ambiente `JWT_SECRET` (ver `.env.example`); no esta en el codigo ni en el repo. Al validar solo se acepta HS256.
+
+Las rutas ya no reciben `actorCompanyUserId`. Cada una llama `leer_actor` (`auth.py`): revisa `Authorization: Bearer ...`, la firma, `exp`, que la membresia exista y este activa y que sea de la empresa del token. Despues sigue `exigir_permiso` con el mismo permiso de antes. El rol no va en el token: se lee en MySQL en cada peticion.
+
+| Ruta | Permiso |
+|---|---|
+| companyUsers, createCompanyUser, deactivateCompanyUser | company.users.read / company.users.write |
+| accounts, createAccount | accounts.read, accounts.write |
+| concepts, createConcept, assignConceptToAccount | concepts.read, concepts.write |
+| transactions, createTransaction | transactions.read, transactions.write |
+| permissionCatalog, previewRolePermissions | roles.read |
+| setRolePermissions, assignRole, assignPermissionToRole, removePermissionFromRole | roles.write |
+
+`login`, `createCompany` y el primer `createCompanyAdmin` no piden token.
+
+En GraphiQL: ejecutar `login`, copiar el token y en HTTP headers poner
+
+```
+{"Authorization": "Bearer TOKEN_QUE_DEVOLVIO_LOGIN"}
+```
+
+Pruebas (servidor arriba; crean su propia empresa, se pueden repetir):
+
+```
+python pruebas/actividad6.py           # L1, L2 y casos C1-C10 -> pruebas/resultados_actividad6.json
+python pruebas/ver_token.py TOKEN      # muestra solo los datos legibles del token
+```
+
+`pruebas/jwt_lab.py` tiene las ayudas de las pruebas (peticiones con encabezado, token alterado y token vencido firmado con el `JWT_SECRET` del laboratorio).
+
+Nota: `pruebas/actividad4.py`, `pruebas/actividad5.py` y `actividad5/operaciones.graphql` usan `actorCompanyUserId` y corresponden al estado del proyecto en esas actividades; desde la 6 ese argumento ya no existe.

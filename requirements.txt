@@ -3,3 +3,4 @@ strawberry-graphql
 sqlalchemy
 pymysql
 cryptography
+PyJWT

@@ -1,0 +1,120 @@
+[
+  {
+    "caso": "L1",
+    "token": null,
+    "ruta": "login",
+    "ok": true,
+    "obtenido": "Token HS256 con ['companyId', 'companyUserId', 'exp']; no trae contrasena, hash ni permisos",
+    "regla": "El servidor firma el token solo despues de comprobar el hash; companyId sale de la membresia"
+  },
+  {
+    "caso": "L2",
+    "token": null,
+    "ruta": "login",
+    "ok": true,
+    "obtenido": "Correo o contrasena incorrectos; data = None",
+    "regla": "Si el hash no coincide no se firma nada"
+  },
+  {
+    "caso": "C1",
+    "token": null,
+    "ruta": "createAccount",
+    "ok": true,
+    "obtenido": "Falta el token; cuentas sin cambio: True",
+    "regla": "Sin encabezado Authorization la ruta no sabe quien llama y no guarda"
+  },
+  {
+    "caso": "C2",
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6Ik...(recortado)",
+    "ruta": "createTransaction",
+    "ok": true,
+    "obtenido": {
+      "createTransaction": {
+        "id": "3",
+        "capturedBy": "10"
+      }
+    },
+    "regla": "El token dice quien es; su rol CAPTURISTA tiene transactions.write"
+  },
+  {
+    "caso": "C3",
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6Ik...(recortado)",
+    "ruta": "createAccount",
+    "ok": true,
+    "obtenido": "El rol no tiene el permiso accounts.write; cuentas sin cambio: True",
+    "regla": "Un token valido no abre todas las rutas: CAPTURISTA no tiene accounts.write"
+  },
+  {
+    "caso": "C4",
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6Ik...(recortado)",
+    "ruta": "createAccount",
+    "ok": true,
+    "obtenido": {
+      "createAccount": {
+        "id": "7",
+        "companyId": "3"
+      }
+    },
+    "regla": "La misma ruta que rechazo a Maria acepta a Luis porque CONTADOR tiene accounts.write"
+  },
+  {
+    "caso": "C5",
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6Ik...(recortado)",
+    "ruta": "createTransaction",
+    "ok": true,
+    "obtenido": "El rol no tiene el permiso transactions.write; movimientos sin cambio: True",
+    "regla": "CONSULTA no tiene transactions.write"
+  },
+  {
+    "caso": "C6",
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6Ik...(recortado)",
+    "ruta": "assignRole",
+    "ok": true,
+    "obtenido": {
+      "assignRole": {
+        "role": {
+          "code": "CAPTURISTA"
+        },
+        "isActive": true
+      }
+    },
+    "regla": "Solo quien tiene roles.write cambia puestos; queda un solo rol activo"
+  },
+  {
+    "caso": "C7",
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6Ik...(recortado)",
+    "ruta": "createTransaction",
+    "ok": true,
+    "obtenido": {
+      "createTransaction": {
+        "id": "4",
+        "capturedBy": "11"
+      }
+    },
+    "regla": "El rol no viaja en el token: se lee otra vez en MySQL en cada peticion"
+  },
+  {
+    "caso": "C8",
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6Ik...(recortado)",
+    "ruta": "accounts / createTransaction",
+    "ok": true,
+    "obtenido": "accounts con el token de Rosa: []; usar la cuenta 6: La cuenta o el concepto no son de tu empresa",
+    "regla": "El token vale para una sola empresa; no lee ni usa las cuentas de otra"
+  },
+  {
+    "caso": "C9",
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6Ik...(recortado)",
+    "ruta": "createAccount",
+    "ok": true,
+    "obtenido": "alterado: El token no es valido; vencido: El token no es valido; cuentas sin cambio: True",
+    "regla": "jwt.decode rechaza firma alterada y exp pasado; no se escribe"
+  },
+  {
+    "caso": "C10",
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6Ik...(recortado)",
+    "ruta": "createAccount con actorCompanyUserId",
+    "ok": true,
+    "obtenido": "Expected value of type 'CreateAccountInput' not to include unknown field 'actorCompanyUserId', found: { name: \"Cuenta suplantada\", actorCompanyUserId: \"1\" }.",
+    "regla": "El argumento ya no existe; el id escrito por el cliente no cambia quien llama"
+  }
+]

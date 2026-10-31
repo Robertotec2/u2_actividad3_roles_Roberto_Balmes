@@ -18,6 +18,8 @@ services:
 
   api:
     build: .
+    environment:
+      JWT_SECRET: ${JWT_SECRET:?Falta JWT_SECRET, copia .env.example a .env}
     ports:
       - "8000:8000"
     depends_on:

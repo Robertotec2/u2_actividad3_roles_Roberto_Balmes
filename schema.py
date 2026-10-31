@@ -7,6 +7,7 @@ from typing import Optional
 
 import strawberry
 
+from auth import crear_token, leer_actor
 from configuracion import PREFIJOS, validar_propuesta, calcular_plan, aplicar_lista
 from database import SessionLocal
 from models import (
@@ -216,8 +217,9 @@ class RolePermissionUpdate:
 
 
 @strawberry.type
-class LoginPayload:
+class AuthPayload:
     token: str
+    token_type: str
     user: User
 
 
@@ -259,10 +261,16 @@ class CreateCompanyAdminInput:
 
 @strawberry.input
 class CreateCompanyUserInput:
-    actor_company_user_id: strawberry.ID
     name: str
     email: str
     password: str
+
+
+@strawberry.input
+class LoginInput:
+    email: str
+    password: str
+    company_id: Optional[strawberry.ID] = None
 
 
 @strawberry.input
@@ -281,14 +289,12 @@ class CreatePermissionInput:
 
 @strawberry.input
 class AssignPermissionToRoleInput:
-    actor_company_user_id: strawberry.ID
     role_id: strawberry.ID
     permission_id: strawberry.ID
 
 
 @strawberry.input
 class AssignRoleInput:
-    actor_company_user_id: strawberry.ID
     company_user_id: strawberry.ID
     role_id: strawberry.ID
 
@@ -301,27 +307,23 @@ class SetRolePermissionsInput:
 
 @strawberry.input
 class CreateAccountInput:
-    actor_company_user_id: strawberry.ID
     name: str
 
 
 @strawberry.input
 class CreateConceptInput:
-    actor_company_user_id: strawberry.ID
     name: str
     type: TransactionType
 
 
 @strawberry.input
 class AssignConceptToAccountInput:
-    actor_company_user_id: strawberry.ID
     account_id: strawberry.ID
     concept_id: strawberry.ID
 
 
 @strawberry.input
 class CreateTransactionInput:
-    actor_company_user_id: strawberry.ID
     account_id: strawberry.ID
     concept_id: strawberry.ID
     amount: Decimal
@@ -336,9 +338,9 @@ class Query:
             return [a_company(c) for c in db.query(CompanyModel).order_by(CompanyModel.id).all()]
 
     @strawberry.field
-    def company_users(self, actor_company_user_id: strawberry.ID) -> list[CompanyUser]:
+    def company_users(self, info: strawberry.Info) -> list[CompanyUser]:
         with SessionLocal() as db:
-            actor = exigir_permiso(db, int(actor_company_user_id), "company.users.read")
+            actor = exigir_permiso(db, leer_actor(db, info), "company.users.read")
             filas = db.query(CompanyUserModel).filter(CompanyUserModel.company_id == actor.company_id).all()
             return [a_cu(db, cu) for cu in filas]
 
@@ -376,10 +378,10 @@ class Query:
             return [a_rp(rp) for rp in filas]
 
     @strawberry.field
-    def permission_catalog(self, actor_company_user_id: strawberry.ID,
+    def permission_catalog(self, info: strawberry.Info,
                            resource: Optional[PermissionResource] = None) -> list[Permission]:
         with SessionLocal() as db:
-            exigir_permiso(db, int(actor_company_user_id), "roles.read")
+            exigir_permiso(db, leer_actor(db, info), "roles.read")
             q = db.query(PermissionModel).filter(PermissionModel.is_active.is_(True))
             if resource is not None:
                 q = q.filter(PermissionModel.code.startswith(PREFIJOS[resource.value]))
@@ -387,9 +389,9 @@ class Query:
 
     @strawberry.field
     def preview_role_permissions(self, input: SetRolePermissionsInput,
-                                 actor_company_user_id: strawberry.ID) -> Optional[RolePermissionPlan]:
+                                 info: strawberry.Info) -> Optional[RolePermissionPlan]:
         with SessionLocal() as db:
-            exigir_permiso(db, int(actor_company_user_id), "roles.read")
+            exigir_permiso(db, leer_actor(db, info), "roles.read")
             rol, deseados = validar_propuesta(db, input.role_id, input.permission_ids)
             plan = calcular_plan(db, rol, deseados)
             return RolePermissionPlan(
@@ -402,21 +404,21 @@ class Query:
             )
 
     @strawberry.field
-    def accounts(self, actor_company_user_id: strawberry.ID) -> list[Account]:
+    def accounts(self, info: strawberry.Info) -> list[Account]:
         with SessionLocal() as db:
-            actor = exigir_permiso(db, int(actor_company_user_id), "accounts.read")
+            actor = exigir_permiso(db, leer_actor(db, info), "accounts.read")
             return [a_account(a) for a in db.query(AccountModel).filter(AccountModel.company_id == actor.company_id).all()]
 
     @strawberry.field
-    def concepts(self, actor_company_user_id: strawberry.ID) -> list[Concept]:
+    def concepts(self, info: strawberry.Info) -> list[Concept]:
         with SessionLocal() as db:
-            actor = exigir_permiso(db, int(actor_company_user_id), "concepts.read")
+            actor = exigir_permiso(db, leer_actor(db, info), "concepts.read")
             return [a_concept(c) for c in db.query(ConceptModel).filter(ConceptModel.company_id == actor.company_id).all()]
 
     @strawberry.field
-    def transactions(self, actor_company_user_id: strawberry.ID) -> list[Transaction]:
+    def transactions(self, info: strawberry.Info) -> list[Transaction]:
         with SessionLocal() as db:
-            actor = exigir_permiso(db, int(actor_company_user_id), "transactions.read")
+            actor = exigir_permiso(db, leer_actor(db, info), "transactions.read")
             filas = db.query(TransactionModel).filter(TransactionModel.company_id == actor.company_id).order_by(TransactionModel.id).all()
             return [a_tx(t) for t in filas]
 
@@ -458,9 +460,9 @@ class Mutation:
             return a_cu(db, cu)
 
     @strawberry.mutation
-    def create_company_user(self, input: CreateCompanyUserInput) -> CompanyUser:
+    def create_company_user(self, input: CreateCompanyUserInput, info: strawberry.Info) -> CompanyUser:
         with SessionLocal() as db:
-            actor = exigir_permiso(db, int(input.actor_company_user_id), "company.users.write")
+            actor = exigir_permiso(db, leer_actor(db, info), "company.users.write")
             if db.query(UserModel).filter(UserModel.email == input.email).first():
                 raise ValueError("Ese correo ya esta registrado")
             u = UserModel(name=input.name, email=input.email, password_hash=hashear(input.password))
@@ -473,9 +475,9 @@ class Mutation:
             return a_cu(db, cu)
 
     @strawberry.mutation
-    def deactivate_company_user(self, actor_company_user_id: strawberry.ID, company_user_id: strawberry.ID) -> CompanyUser:
+    def deactivate_company_user(self, info: strawberry.Info, company_user_id: strawberry.ID) -> CompanyUser:
         with SessionLocal() as db:
-            actor = exigir_permiso(db, int(actor_company_user_id), "company.users.write")
+            actor = exigir_permiso(db, leer_actor(db, info), "company.users.write")
             cu = db.get(CompanyUserModel, int(company_user_id))
             if cu is None or cu.company_id != actor.company_id:
                 raise ValueError("Esa membresia no es de tu empresa")
@@ -487,12 +489,24 @@ class Mutation:
             return a_cu(db, cu)
 
     @strawberry.mutation
-    def login(self, email: str, password: str) -> LoginPayload:
+    def login(self, input: LoginInput) -> AuthPayload:
         with SessionLocal() as db:
-            u = db.query(UserModel).filter(UserModel.email == email).first()
-            if u is None or not u.is_active or not verificar(password, u.password_hash):
+            u = db.query(UserModel).filter(UserModel.email == input.email).first()
+            if u is None or not u.is_active or not verificar(input.password, u.password_hash):
                 raise ValueError("Correo o contrasena incorrectos")
-            return LoginPayload(token=secrets.token_urlsafe(32), user=a_user(u))
+            q = db.query(CompanyUserModel).filter(
+                CompanyUserModel.user_id == u.id, CompanyUserModel.is_active.is_(True)
+            )
+            if input.company_id is not None:
+                q = q.filter(CompanyUserModel.company_id == int(input.company_id))
+            membresias = q.all()
+            if not membresias:
+                raise ValueError("Correo o contrasena incorrectos")
+            if len(membresias) > 1:
+                raise ValueError("Perteneces a varias empresas: indica companyId")
+            cu = membresias[0]
+            # companyId sale de la fila de la membresia, no del cliente
+            return AuthPayload(token=crear_token(cu.id, cu.company_id), token_type="bearer", user=a_user(u))
 
     @strawberry.mutation
     def create_role(self, input: CreateRoleInput) -> Role:
@@ -530,9 +544,9 @@ class Mutation:
             return a_perm(p)
 
     @strawberry.mutation
-    def assign_permission_to_role(self, input: AssignPermissionToRoleInput) -> RolePermission:
+    def assign_permission_to_role(self, input: AssignPermissionToRoleInput, info: strawberry.Info) -> RolePermission:
         with SessionLocal() as db:
-            exigir_permiso(db, int(input.actor_company_user_id), "roles.write")
+            exigir_permiso(db, leer_actor(db, info), "roles.write")
             role_id, perm_id = int(input.role_id), int(input.permission_id)
             if db.get(RoleModel, role_id) is None or db.get(PermissionModel, perm_id) is None:
                 raise ValueError("El rol o el permiso no existe")
@@ -557,9 +571,9 @@ class Mutation:
             return a_rp(rp)
 
     @strawberry.mutation
-    def remove_permission_from_role(self, actor_company_user_id: strawberry.ID, role_id: strawberry.ID, permission_id: strawberry.ID) -> bool:
+    def remove_permission_from_role(self, info: strawberry.Info, role_id: strawberry.ID, permission_id: strawberry.ID) -> bool:
         with SessionLocal() as db:
-            exigir_permiso(db, int(actor_company_user_id), "roles.write")
+            exigir_permiso(db, leer_actor(db, info), "roles.write")
             n = db.query(RolePermissionModel).filter(
                 RolePermissionModel.role_id == int(role_id),
                 RolePermissionModel.permission_id == int(permission_id),
@@ -570,9 +584,9 @@ class Mutation:
 
     @strawberry.mutation
     def set_role_permissions(self, input: SetRolePermissionsInput,
-                             actor_company_user_id: strawberry.ID) -> Optional[RolePermissionUpdate]:
+                             info: strawberry.Info) -> Optional[RolePermissionUpdate]:
         with SessionLocal() as db:
-            exigir_permiso(db, int(actor_company_user_id), "roles.write")
+            exigir_permiso(db, leer_actor(db, info), "roles.write")
             plan = aplicar_lista(db, input.role_id, input.permission_ids)
             return RolePermissionUpdate(
                 role=a_role(plan["role"]),
@@ -584,9 +598,9 @@ class Mutation:
             )
 
     @strawberry.mutation
-    def assign_role(self, input: AssignRoleInput) -> CompanyUserRole:
+    def assign_role(self, input: AssignRoleInput, info: strawberry.Info) -> CompanyUserRole:
         with SessionLocal() as db:
-            actor = exigir_permiso(db, int(input.actor_company_user_id), "roles.write")
+            actor = exigir_permiso(db, leer_actor(db, info), "roles.write")
             cu = db.get(CompanyUserModel, int(input.company_user_id))
             if cu is None or cu.company_id != actor.company_id or not cu.is_active:
                 raise ValueError("Esa membresia no es de tu empresa o esta desactivada")
@@ -601,9 +615,9 @@ class Mutation:
             return CompanyUserRole(id=nuevo.id, company_user=a_cu(db, cu), role=a_role(r), is_active=nuevo.is_active)
 
     @strawberry.mutation
-    def create_account(self, input: CreateAccountInput) -> Account:
+    def create_account(self, input: CreateAccountInput, info: strawberry.Info) -> Account:
         with SessionLocal() as db:
-            actor = exigir_permiso(db, int(input.actor_company_user_id), "accounts.write")
+            actor = exigir_permiso(db, leer_actor(db, info), "accounts.write")
             a = AccountModel(company_id=actor.company_id, name=input.name, balance=0)
             db.add(a)
             db.commit()
@@ -611,9 +625,9 @@ class Mutation:
             return a_account(a)
 
     @strawberry.mutation
-    def create_concept(self, input: CreateConceptInput) -> Concept:
+    def create_concept(self, input: CreateConceptInput, info: strawberry.Info) -> Concept:
         with SessionLocal() as db:
-            actor = exigir_permiso(db, int(input.actor_company_user_id), "concepts.write")
+            actor = exigir_permiso(db, leer_actor(db, info), "concepts.write")
             c = ConceptModel(company_id=actor.company_id, name=input.name, type=input.type.value)
             db.add(c)
             db.commit()
@@ -621,9 +635,9 @@ class Mutation:
             return a_concept(c)
 
     @strawberry.mutation
-    def assign_concept_to_account(self, input: AssignConceptToAccountInput) -> AccountConcept:
+    def assign_concept_to_account(self, input: AssignConceptToAccountInput, info: strawberry.Info) -> AccountConcept:
         with SessionLocal() as db:
-            actor = exigir_permiso(db, int(input.actor_company_user_id), "concepts.write")
+            actor = exigir_permiso(db, leer_actor(db, info), "concepts.write")
             a = db.get(AccountModel, int(input.account_id))
             c = db.get(ConceptModel, int(input.concept_id))
             if a is None or c is None or a.company_id != actor.company_id or c.company_id != actor.company_id:
@@ -641,11 +655,11 @@ class Mutation:
             return a_ac(ac)
 
     @strawberry.mutation
-    def create_transaction(self, input: CreateTransactionInput) -> Transaction:
+    def create_transaction(self, input: CreateTransactionInput, info: strawberry.Info) -> Transaction:
         with SessionLocal() as db:
+            actor = membresia_activa(db, leer_actor(db, info))
             if input.amount <= 0:
                 raise ValueError("El monto tiene que ser mayor a cero")
-            actor = membresia_activa(db, int(input.actor_company_user_id))
             a = db.get(AccountModel, int(input.account_id))
             c = db.get(ConceptModel, int(input.concept_id))
             if a is None or c is None or a.company_id != actor.company_id or c.company_id != actor.company_id:
