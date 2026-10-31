@@ -7,6 +7,7 @@ from typing import Optional
 
 import strawberry
 
+from configuracion import PREFIJOS, validar_propuesta, calcular_plan, aplicar_lista
 from database import SessionLocal
 from models import (
     CompanyModel, UserModel, CompanyUserModel, AccountModel, ConceptModel, AccountConceptModel,
@@ -84,6 +85,15 @@ def asignar_rol(db, company_user_id: int, role_id: int) -> CompanyUserRoleModel:
 class TransactionType(Enum):
     INCOME = "INCOME"
     EXPENSE = "EXPENSE"
+
+
+@strawberry.enum
+class PermissionResource(Enum):
+    COMPANY_USERS = "COMPANY_USERS"
+    ACCOUNTS = "ACCOUNTS"
+    CONCEPTS = "CONCEPTS"
+    TRANSACTIONS = "TRANSACTIONS"
+    ROLES = "ROLES"
 
 
 @strawberry.type
@@ -186,6 +196,26 @@ class Transaction:
 
 
 @strawberry.type
+class RolePermissionPlan:
+    role: Role
+    current: list[Permission]
+    to_activate: list[Permission]
+    to_deactivate: list[Permission]
+    unchanged: list[Permission]
+    final_count: int
+
+
+@strawberry.type
+class RolePermissionUpdate:
+    role: Role
+    activated: list[Permission]
+    deactivated: list[Permission]
+    unchanged: list[Permission]
+    final_count: int
+    changed: bool
+
+
+@strawberry.type
 class LoginPayload:
     token: str
     user: User
@@ -264,6 +294,12 @@ class AssignRoleInput:
 
 
 @strawberry.input
+class SetRolePermissionsInput:
+    role_id: strawberry.ID
+    permission_ids: list[strawberry.ID]
+
+
+@strawberry.input
 class CreateAccountInput:
     actor_company_user_id: strawberry.ID
     name: str
@@ -338,6 +374,32 @@ class Query:
                 .all()
             )
             return [a_rp(rp) for rp in filas]
+
+    @strawberry.field
+    def permission_catalog(self, actor_company_user_id: strawberry.ID,
+                           resource: Optional[PermissionResource] = None) -> list[Permission]:
+        with SessionLocal() as db:
+            exigir_permiso(db, int(actor_company_user_id), "roles.read")
+            q = db.query(PermissionModel).filter(PermissionModel.is_active.is_(True))
+            if resource is not None:
+                q = q.filter(PermissionModel.code.startswith(PREFIJOS[resource.value]))
+            return [a_perm(p) for p in q.order_by(PermissionModel.code).all()]
+
+    @strawberry.field
+    def preview_role_permissions(self, input: SetRolePermissionsInput,
+                                 actor_company_user_id: strawberry.ID) -> Optional[RolePermissionPlan]:
+        with SessionLocal() as db:
+            exigir_permiso(db, int(actor_company_user_id), "roles.read")
+            rol, deseados = validar_propuesta(db, input.role_id, input.permission_ids)
+            plan = calcular_plan(db, rol, deseados)
+            return RolePermissionPlan(
+                role=a_role(rol),
+                current=[a_perm(p) for p in plan["current"]],
+                to_activate=[a_perm(p) for p in plan["to_activate"]],
+                to_deactivate=[a_perm(p) for p in plan["to_deactivate"]],
+                unchanged=[a_perm(p) for p in plan["unchanged"]],
+                final_count=plan["final_count"],
+            )
 
     @strawberry.field
     def accounts(self, actor_company_user_id: strawberry.ID) -> list[Account]:
@@ -505,6 +567,21 @@ class Mutation:
             ).update({"is_active": False})
             db.commit()
             return n > 0
+
+    @strawberry.mutation
+    def set_role_permissions(self, input: SetRolePermissionsInput,
+                             actor_company_user_id: strawberry.ID) -> Optional[RolePermissionUpdate]:
+        with SessionLocal() as db:
+            exigir_permiso(db, int(actor_company_user_id), "roles.write")
+            plan = aplicar_lista(db, input.role_id, input.permission_ids)
+            return RolePermissionUpdate(
+                role=a_role(plan["role"]),
+                activated=[a_perm(p) for p in plan["to_activate"]],
+                deactivated=[a_perm(p) for p in plan["to_deactivate"]],
+                unchanged=[a_perm(p) for p in plan["unchanged"]],
+                final_count=plan["final_count"],
+                changed=bool(plan["to_activate"] or plan["to_deactivate"]),
+            )
 
     @strawberry.mutation
     def assign_role(self, input: AssignRoleInput) -> CompanyUserRole:

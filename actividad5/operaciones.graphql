@@ -1,0 +1,109 @@
+# Actividad 5 - Operaciones con nombre. En GraphiQL se elige cual ejecutar.
+# Las variables de cada caso estan en variables/ (ver README).
+# El caso de error del enum (PAYMENTS) esta en operaciones_error.graphql: GraphQL valida el
+# documento completo, y si estuviera aqui ninguna otra operacion de este archivo se ejecutaria.
+
+fragment DatosPermiso on Permission {
+  id
+  code
+  name
+}
+
+# E01 - variables/e01_punto_de_partida.json
+query PuntoDePartida($capturista: ID!) {
+  roles {
+    id
+    code
+    isActive
+  }
+  permissions {
+    id
+    code
+    isActive
+  }
+  rolePermissions(roleId: $capturista) {
+    id
+    permission {
+      code
+    }
+    isActive
+  }
+}
+
+# E02 - variables/e02_explorar_catalogo.json (alias + fragmento)
+query ExplorarCatalogo($actor: ID!) {
+  cuentas: permissionCatalog(resource: ACCOUNTS, actorCompanyUserId: $actor) {
+    ...DatosPermiso
+  }
+  movimientos: permissionCatalog(resource: TRANSACTIONS, actorCompanyUserId: $actor) {
+    ...DatosPermiso
+  }
+}
+
+# E02 - variables/e02_catalogo_completo.json
+query CatalogoCompleto($actor: ID!) {
+  permissionCatalog(actorCompanyUserId: $actor) {
+    ...DatosPermiso
+  }
+}
+
+# E03 y E06 - variables/e03_revisar_s1.json, variables/e06_*.json
+query RevisarConfiguracion($actor: ID!, $input: SetRolePermissionsInput!) {
+  previewRolePermissions(input: $input, actorCompanyUserId: $actor) {
+    role {
+      code
+    }
+    current {
+      code
+    }
+    toActivate {
+      code
+    }
+    toDeactivate {
+      code
+    }
+    unchanged {
+      code
+    }
+    finalCount
+  }
+}
+
+# E04, E05, E06, E08, E09 - variables/e04_aplicar_s1.json, e05_*.json, e06_*.json, e08_lista_vacia.json, e09_restaurar_s0.json
+mutation AplicarConfiguracion($actor: ID!, $input: SetRolePermissionsInput!) {
+  setRolePermissions(input: $input, actorCompanyUserId: $actor) {
+    role {
+      code
+    }
+    activated {
+      code
+    }
+    deactivated {
+      code
+    }
+    unchanged {
+      code
+    }
+    finalCount
+    changed
+  }
+}
+
+# E10 - variables/e10_consultar_cuentas.json
+query ConsultarCuentas($actor: ID!) {
+  accounts(actorCompanyUserId: $actor) {
+    id
+    name
+    balance
+  }
+}
+
+# E10 - variables/e10_registrar_movimiento.json
+mutation RegistrarMovimiento($actor: ID!, $cuenta: ID!, $concepto: ID!, $monto: Decimal!) {
+  createTransaction(input: {actorCompanyUserId: $actor, accountId: $cuenta, conceptId: $concepto, amount: $monto}) {
+    id
+    type
+    amount
+    capturedBy
+  }
+}

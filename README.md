@@ -68,3 +68,48 @@ JOIN roles r ON r.id = rp.role_id
 JOIN permissions p ON p.id = rp.permission_id
 ORDER BY r.code, p.code;
 ```
+
+## Actividad 5 - Configurar permisos con GraphQL
+
+Integrantes: Roberto Balmes Solis, David Romero
+
+Se agregaron tres funcionalidades. La validacion y el calculo de diferencias estan en `configuracion.py` y los usan la query y la mutation, asi no pueden dar resultados distintos:
+
+- `permissionCatalog(actorCompanyUserId, resource)`: catalogo activo, filtrado en MySQL por el prefijo del enum `PermissionResource` (pide `roles.read`)
+- `previewRolePermissions(input, actorCompanyUserId)`: valida la lista y regresa `current`, `toActivate`, `toDeactivate`, `unchanged` y `finalCount` sin escribir nada (pide `roles.read`)
+- `setRolePermissions(input, actorCompanyUserId)`: vuelve a validar y deja exactamente esa lista con un solo `commit`; si se repite regresa `changed: false` (pide `roles.write`)
+
+Reglas: el rol tiene que existir, estar activo y no ser ADMINISTRADOR; cada permiso tiene que existir y estar activo; ids repetidos dan error (`"3"` y `3` cuentan igual); `[]` es valido y desactiva todo. Reactivar usa la misma fila.
+
+Se agrego `UNIQUE (role_id, permission_id)` en `role_permissions`. Como `create_all` no cambia tablas que ya existen, `main.py` la agrega al arrancar si falta; el SQL esta en `migraciones/001_unique_role_permissions.sql`. La carga inicial solo llena un rol que no tiene ninguna fila, asi que una lista vacia sigue vacia al reiniciar.
+
+Archivos en `actividad5/`:
+
+| Archivo | Que es |
+|---|---|
+| `investigacion.md` | Investigacion de los cuatro apartados con fuentes |
+| `operaciones.graphql` | Operaciones con nombre (alias y fragmento en `ExplorarCatalogo`) |
+| `operaciones_error.graphql` | `CatalogoRecursoInexistente` con `PAYMENTS` (va aparte porque GraphQL valida todo el documento) |
+| `variables/` | Un JSON por caso |
+| `configuracion_inicial.json` / `configuracion_final.json` | Matriz por codigos antes y despues |
+| `comprobaciones.sql` | Consultas de verificacion y la preparacion/restauracion de E06 |
+
+| Operacion | Variables |
+|---|---|
+| PuntoDePartida (E01) | `e01_punto_de_partida.json` |
+| ExplorarCatalogo / CatalogoCompleto / CatalogoRecursoInexistente (E02) | `e02_explorar_catalogo.json`, `e02_catalogo_completo.json`, `e02_catalogo_payments.json` |
+| RevisarConfiguracion (E03, E06) | `e03_revisar_s1.json`, `e06_*.json` |
+| AplicarConfiguracion (E04, E05, E06, E08, E09) | `e04_aplicar_s1.json`, `e05_aplicar_s0.json`, `e05_aplicar_s1.json`, `e06_*.json`, `e08_lista_vacia.json`, `e09_restaurar_s0.json` |
+| ConsultarCuentas / RegistrarMovimiento (E10) | `e10_consultar_cuentas.json`, `e10_registrar_movimiento.json` |
+
+Los ids de las variables son los de una base nueva preparada con `pruebas/actividad4.py` (Ana = 1, CAPTURISTA = 3, permisos 1 a 10).
+
+Pruebas (base nueva y servidor arriba):
+
+```
+python pruebas/actividad4.py      # prepara empresa y personas
+python pruebas/actividad5.py      # E01-E06, E08 (sin reinicio), E09, E10 -> pruebas/resultados_actividad5.json
+docker compose exec api python -m unittest -v tests.test_e07_rollback   # E07
+```
+
+E08 con reinicio: aplicar `e08_lista_vacia.json`, `docker compose restart api` y revisar que CAPTURISTA siga con cero relaciones activas; luego restaurar con `e09_restaurar_s0.json`.

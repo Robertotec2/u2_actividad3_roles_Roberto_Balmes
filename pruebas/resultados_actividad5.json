@@ -1,0 +1,79 @@
+[
+  {
+    "caso": "E01",
+    "ok": true,
+    "obtenido": "4 roles, 10 permisos, CAPTURISTA=['accounts.read', 'concepts.read', 'transactions.read', 'transactions.write']"
+  },
+  {
+    "caso": "E02",
+    "ok": true,
+    "obtenido": "cuentas=2, movimientos=2, sin filtro=10; PAYMENTS: Value 'PAYMENTS' does not exist in 'PermissionResource' enum."
+  },
+  {
+    "caso": "E03",
+    "ok": true,
+    "obtenido": "toActivate=['accounts.write'], toDeactivate=0, unchanged=4, finalCount=5; SQL igual: True"
+  },
+  {
+    "caso": "E04",
+    "ok": true,
+    "obtenido": "1a changed=True, 2a changed=False, finalCount=5, sin duplicados"
+  },
+  {
+    "caso": "E05",
+    "ok": true,
+    "obtenido": "'27\\taccounts.write\\t1' -> '27\\taccounts.write\\t0' -> '27\\taccounts.write\\t1'"
+  },
+  {
+    "caso": "E06",
+    "ok": true,
+    "obtenido": {
+      "e06_rol_inexistente": [
+        "El rol 999 no existe",
+        "El rol 999 no existe"
+      ],
+      "e06_rol_inactivo": [
+        "El rol CONSULTA esta inactivo",
+        "El rol CONSULTA esta inactivo"
+      ],
+      "e06_administrador": [
+        "No se permite cambiar la lista de ADMINISTRADOR en este laboratorio",
+        "No se permite cambiar la lista de ADMINISTRADOR en este laboratorio"
+      ],
+      "e06_permiso_inexistente": [
+        "Estos permisos no existen: [999]",
+        "Estos permisos no existen: [999]"
+      ],
+      "e06_permiso_inactivo": [
+        "Estos permisos estan inactivos en el catalogo: ['concepts.write']",
+        "Estos permisos estan inactivos en el catalogo: ['concepts.write']"
+      ],
+      "e06_repetido": [
+        "Hay ids de permiso repetidos: [3]",
+        "Hay ids de permiso repetidos: [3]"
+      ]
+    }
+  },
+  {
+    "caso": "E08",
+    "ok": true,
+    "obtenido": "deactivated=['accounts.read', 'accounts.write', 'concepts.read', 'transactions.read', 'transactions.write']; reiniciar la API y volver a revisar (ver README)"
+  },
+  {
+    "caso": "E09",
+    "ok": true,
+    "obtenido": "configuracion_final.json igual a configuracion_inicial.json"
+  },
+  {
+    "caso": "E10",
+    "ok": true,
+    "obtenido": {
+      "createTransaction": {
+        "id": "2",
+        "type": "INCOME",
+        "amount": 275.5,
+        "capturedBy": "4"
+      }
+    }
+  }
+]

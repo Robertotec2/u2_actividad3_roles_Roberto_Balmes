@@ -1,0 +1,8 @@
+# E02 - variables/e02_catalogo_payments.json
+# Debe responder errors: PAYMENTS no existe en el enum PermissionResource.
+query CatalogoRecursoInexistente($actor: ID!) {
+  permissionCatalog(resource: PAYMENTS, actorCompanyUserId: $actor) {
+    id
+    code
+  }
+}

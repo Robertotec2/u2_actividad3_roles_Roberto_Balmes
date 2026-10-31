@@ -114,6 +114,8 @@ class RolePermissionModel(Base):
     role = relationship("RoleModel")
     permission = relationship("PermissionModel")
 
+    __table_args__ = (UniqueConstraint("role_id", "permission_id", name="uq_role_permission"),)
+
 
 class CompanyUserRoleModel(Base):
     __tablename__ = "company_user_roles"

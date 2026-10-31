@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from sqlalchemy import text
 from strawberry.fastapi import GraphQLRouter
 
 from database import Base, engine, SessionLocal
@@ -54,9 +55,21 @@ def carga_inicial():
         db.commit()
 
 
+def migrar():
+    # create_all no cambia tablas que ya existen; ver migraciones/001_unique_role_permissions.sql
+    with engine.begin() as con:
+        hay = con.execute(text(
+            "SELECT COUNT(*) FROM information_schema.statistics "
+            "WHERE table_schema = DATABASE() AND table_name = 'role_permissions' AND index_name = 'uq_role_permission'"
+        )).scalar()
+        if not hay:
+            con.execute(text("ALTER TABLE role_permissions ADD CONSTRAINT uq_role_permission UNIQUE (role_id, permission_id)"))
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
+    migrar()
     carga_inicial()
     yield
 
