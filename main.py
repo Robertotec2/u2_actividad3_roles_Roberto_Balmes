@@ -1,6 +1,11 @@
+import os
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 from strawberry.fastapi import GraphQLRouter
 
@@ -100,7 +105,23 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Sistema General de Ingresos", lifespan=lifespan)
 app.include_router(GraphQLRouter(schema), prefix="/graphql")
 
+# Unidad 3: CORS solo para desarrollo, cuando el dashboard se sirve desde otro puerto.
+# Ejemplo: CORS_ORIGINS=http://localhost:5173. Sin la variable no se agrega nada.
+origenes = [o.strip() for o in os.getenv("CORS_ORIGINS", "").split(",") if o.strip()]
+if origenes:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=origenes,
+        allow_methods=["POST", "OPTIONS"],
+        allow_headers=["Authorization", "Content-Type"],
+    )
+
+# Unidad 3: el dashboard se sirve desde el mismo origen que el API (no necesita CORS)
+DASHBOARD = Path(__file__).parent / "dashboard"
+if DASHBOARD.is_dir():
+    app.mount("/dashboard", StaticFiles(directory=DASHBOARD, html=True), name="dashboard")
+
 
 @app.get("/")
 def inicio():
-    return {"mensaje": "Sistema General de Ingresos, entra a /graphql"}
+    return RedirectResponse("/dashboard/")

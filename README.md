@@ -1,4 +1,37 @@
-# Sistema General de Ingresos - Roles y control de acceso
+# Sistema General de Ingresos
+
+Integrantes: Roberto Balmes Solis, David Romero
+
+## Unidad 3 Actividad 1 - Dashboard financiero (lo mas reciente)
+
+Cliente web (HTML + CSS + JavaScript, sin dependencias) en `dashboard/`, servido por el mismo FastAPI.
+
+```
+cp .env.example .env                                      # primera vez; poner JWT_SECRET
+docker compose up --build                                 # MySQL en localhost:3307, API en localhost:8000
+python pruebas/u3_actividad1_datos.py                     # datos de demostracion (una sola vez)
+```
+
+- Dashboard: http://localhost:8000/dashboard/ (la raiz redirige ahi) · GraphiQL: http://localhost:8000/graphql
+- Usuario de prueba: `roberto.demo@ingresos.test` / `demo123` (ADMINISTRADOR). Tambien `david.demo@ingresos.test`
+  (CONSULTA) e `invitado.demo@ingresos.test` (sin rol, ve "Acceso denegado"). Misma contrasena de laboratorio.
+- Periodo de demostracion: 2026-10-26 al 2026-10-30 -> inicial 1,000.00, ingresos 3,500.00, egresos 2,900.00,
+  profit 600.00, final 1,600.00, general no en rojo, 1 cuenta en rojo (Caja).
+- Para empezar de cero: `docker compose down -v` y volver a correr los dos ultimos comandos.
+
+Cambios al backend: query `mySession` (empresa, usuario y rol del token, sin datos financieros), `/dashboard`
+como archivos estaticos y CORS opcional con `CORS_ORIGINS` (solo si el dashboard se sirve en otro puerto).
+Detalle del cliente en `dashboard/README.md`.
+
+| Entregable | Archivo |
+|---|---|
+| Boceto | `unidad3_actividad1/boceto_dashboard.png` (tambien `.pdf` y `.svg`) |
+| Evidencias | `unidad3_actividad1/evidencias.md` y `unidad3_actividad1/capturas/` |
+| Guion de la demo | `unidad3_actividad1/guion_demo.md` |
+
+---
+
+# Unidad 2 - Roles y control de acceso
 
 Unidad 2 Actividad 3. Se agregaron roles, permisos y la matriz de permisos por rol encima del sistema de empresas, usuarios, cuentas, conceptos y movimientos.
 

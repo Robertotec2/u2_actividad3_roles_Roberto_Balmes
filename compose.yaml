@@ -20,6 +20,7 @@ services:
     build: .
     environment:
       JWT_SECRET: ${JWT_SECRET:?Falta JWT_SECRET, copia .env.example a .env}
+      CORS_ORIGINS: ${CORS_ORIGINS:-}
     ports:
       - "8000:8000"
     depends_on:

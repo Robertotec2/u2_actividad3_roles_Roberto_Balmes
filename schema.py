@@ -250,6 +250,14 @@ class RolePermissionUpdate:
 
 
 @strawberry.type
+class SessionInfo:
+    company_user_id: strawberry.ID
+    company: Company
+    user: User
+    role: Optional[Role]
+
+
+@strawberry.type
 class AuthPayload:
     token: str
     token_type: str
@@ -407,6 +415,16 @@ class Query:
     def companies(self) -> list[Company]:
         with SessionLocal() as db:
             return [a_company(c) for c in db.query(CompanyModel).order_by(CompanyModel.id).all()]
+
+    @strawberry.field
+    def my_session(self, info: strawberry.Info) -> SessionInfo:
+        # Unidad 3: el dashboard muestra empresa, usuario y rol de quien tiene el token.
+        # Solo valida el token; no pide permisos porque no devuelve datos financieros.
+        with SessionLocal() as db:
+            cu = db.get(CompanyUserModel, leer_actor(db, info))
+            r = rol_de(db, cu.id)
+            return SessionInfo(company_user_id=cu.id, company=a_company(cu.company), user=a_user(cu.user),
+                               role=a_role(r) if r else None)
 
     @strawberry.field
     def company_users(self, info: strawberry.Info) -> list[CompanyUser]:
