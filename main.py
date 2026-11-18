@@ -93,6 +93,28 @@ def migrar():
         if not hay:
             con.execute(text("CREATE INDEX ix_transactions_account_date ON transactions (account_id, transaction_date)"))
 
+        # Unidad 3 Actividad 2: catalogo de cuentas y descripcion de conceptos
+        # (ver migraciones/003_admin_dashboard.sql). idempotency_keys la crea create_all.
+        columnas = set(con.execute(text(
+            "SELECT column_name FROM information_schema.columns "
+            "WHERE table_schema = DATABASE() AND table_name = 'accounts'"
+        )).scalars())
+        if "account_type" not in columnas:
+            con.execute(text("ALTER TABLE accounts ADD COLUMN account_type VARCHAR(20) NOT NULL DEFAULT 'OTHER'"))
+            # Las cuentas de laboratorio previas solo tenian nombre: se toma el tipo evidente del nombre
+            con.execute(text("UPDATE accounts SET account_type = 'CASH' WHERE name = 'Caja'"))
+            con.execute(text("UPDATE accounts SET account_type = 'DEBIT' WHERE name = 'Banco'"))
+            con.execute(text("UPDATE accounts SET account_type = 'SAVINGS' WHERE name = 'Ahorro'"))
+        for columna, tipo in (("bank_name", "VARCHAR(100)"), ("clabe", "VARCHAR(18)"), ("description", "VARCHAR(255)")):
+            if columna not in columnas:
+                con.execute(text(f"ALTER TABLE accounts ADD COLUMN {columna} {tipo} NULL"))
+        columnas = set(con.execute(text(
+            "SELECT column_name FROM information_schema.columns "
+            "WHERE table_schema = DATABASE() AND table_name = 'concepts'"
+        )).scalars())
+        if "description" not in columnas:
+            con.execute(text("ALTER TABLE concepts ADD COLUMN description VARCHAR(255) NULL"))
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Dashboard financiero · Sistema General de Ingresos</title>
+  <title>Sistema General de Ingresos</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%231f4e8c'/%3E%3Cpath d='M8 22h4v-6H8zm6 0h4V10h-4zm6 0h4v-9h-4z' fill='%23fff'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="styles.css">
 </head>
@@ -13,8 +13,8 @@
   <main id="vista-login" class="login" hidden>
     <form id="form-login" class="login-caja" novalidate>
       <p class="marca">Sistema General de Ingresos</p>
-      <h1>Dashboard financiero</h1>
-      <p class="ayuda">Inicia sesión con tu cuenta de la empresa para ver sus indicadores.</p>
+      <h1>Iniciar sesión</h1>
+      <p class="ayuda">Inicia sesión con tu cuenta de la empresa para ver sus indicadores y administrar el catálogo.</p>
 
       <div id="login-aviso" class="aviso" role="alert" hidden></div>
 
@@ -40,9 +40,9 @@
     <!-- Bloque: Encabezado -->
     <header class="encabezado">
       <div class="empresa">
-        <p class="marca">Dashboard financiero</p>
+        <p class="marca" id="seccion-marca">Dashboard financiero</p>
         <h1 id="empresa-nombre">—</h1>
-        <p class="sub"><span id="empresa-rfc"></span> · Moneda <strong>MXN</strong></p>
+        <p class="sub"><span id="empresa-rfc"></span><span id="empresa-moneda"> · Moneda <strong>MXN</strong></span></p>
       </div>
       <div class="sesion">
         <p><strong id="usuario-nombre"></strong> <span id="usuario-rol" class="chip"></span></p>
@@ -51,6 +51,20 @@
       </div>
     </header>
 
+    <div class="app">
+    <!-- Menu: una sola aplicacion, dos dashboards (Unidad III · Actividad 2) -->
+    <nav class="menu" aria-label="Secciones">
+      <p class="menu-grupo">Finanzas</p>
+      <a href="#/financiero" data-ruta="financiero">Dashboard financiero</a>
+      <p class="menu-grupo">Dashboard administrativo</p>
+      <a href="#/admin/usuarios" data-ruta="usuarios">Usuarios</a>
+      <a href="#/admin/cuentas" data-ruta="cuentas">Cuentas</a>
+      <a href="#/admin/conceptos" data-ruta="conceptos">Conceptos</a>
+    </nav>
+
+    <div class="area">
+    <!-- ===================== Dashboard financiero (actividad 1, se conserva) ===================== -->
+    <div id="vista-financiero" class="vista">
     <!-- Bloque: Controles del periodo -->
     <section class="controles" aria-label="Período">
       <form id="form-periodo" novalidate>
@@ -150,9 +164,189 @@
     </main>
 
     <footer class="pie">Cifras calculadas por el API GraphQL (<code>generalBalance</code>). Días completos en UTC.</footer>
+    </div>
+
+    <!-- ===================== Dashboard administrativo: Usuarios ===================== -->
+    <section id="vista-usuarios" class="vista admin" hidden aria-labelledby="titulo-usuarios">
+      <div class="admin-cabecera">
+        <div>
+          <h2 id="titulo-usuarios">Usuarios</h2>
+          <p class="sub">¿Quién pertenece a la empresa? Cada fila es una membresía (<code>companyUsers</code>).</p>
+        </div>
+        <button type="button" class="primario" id="btn-nuevo-usuario" data-permiso="company.users.write">+ Nuevo usuario</button>
+      </div>
+
+      <div class="admin-aviso aviso" role="alert" hidden></div>
+
+      <form class="panel-alta" id="form-usuario" hidden novalidate autocomplete="off">
+        <h3>Nuevo usuario</h3>
+        <p class="ayuda chica">Se crea una membresía de la empresa de la sesión. No es administrador principal; el rol se asigna en la Actividad #14.</p>
+        <div class="campos">
+          <div><label for="u-nombre">Nombre</label><input id="u-nombre" name="name" required maxlength="150"></div>
+          <div><label for="u-correo">Correo</label><input id="u-correo" name="email" type="email" required maxlength="150" autocomplete="off"></div>
+          <div><label for="u-password">Contraseña</label><input id="u-password" name="password" type="password" required minlength="6" autocomplete="new-password"></div>
+        </div>
+        <div class="acciones-form">
+          <button type="submit" class="primario">Guardar</button>
+          <button type="button" class="secundario" data-cancelar>Cancelar</button>
+        </div>
+      </form>
+
+      <div class="conteos" aria-label="Conteos de membresías">
+        <article class="conteo"><h3>Usuarios activos</h3><p id="c-activos">—</p></article>
+        <article class="conteo" id="conteo-admin"><h3>Administrador principal</h3><p id="c-admin">—</p><p class="nota" id="c-admin-nota"></p></article>
+        <article class="conteo"><h3>Inactivos</h3><p id="c-inactivos">—</p></article>
+      </div>
+
+      <div class="barra">
+        <input type="search" id="u-buscar" placeholder="Buscar por nombre o correo" aria-label="Buscar por nombre o correo">
+        <div class="filtros" role="group" aria-label="Filtrar por estado">
+          <button type="button" class="filtro activo" data-filtro-usuarios="todos">Todos</button>
+          <button type="button" class="filtro" data-filtro-usuarios="activos">Solo activos</button>
+          <button type="button" class="filtro" data-filtro-usuarios="inactivos">Inactivos</button>
+        </div>
+      </div>
+
+      <div class="tabla-envoltura caja-tabla">
+        <table id="tabla-usuarios">
+          <thead><tr><th>Nombre</th><th>Correo</th><th>Rol</th><th>Administrador</th><th>Estado</th><th class="acciones-col"><span class="solo-lector">Acciones</span></th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <p class="vacio" hidden></p>
+      </div>
+    </section>
+
+    <!-- ===================== Dashboard administrativo: Cuentas ===================== -->
+    <section id="vista-cuentas" class="vista admin" hidden aria-labelledby="titulo-cuentas">
+      <div class="admin-cabecera">
+        <div>
+          <h2 id="titulo-cuentas">Cuentas</h2>
+          <p class="sub">¿Dónde está el dinero? Lista de <code>accounts</code> de la empresa.</p>
+        </div>
+        <button type="button" class="primario" id="btn-nueva-cuenta" data-permiso="accounts.write">+ Nueva cuenta</button>
+      </div>
+
+      <div class="admin-aviso aviso" role="alert" hidden></div>
+
+      <form class="panel-alta" id="form-cuenta" hidden novalidate autocomplete="off">
+        <h3>Nueva cuenta</h3>
+        <p class="ayuda chica">Banco y CLABE pueden ir vacíos en una cuenta de efectivo.</p>
+        <div class="campos">
+          <div><label for="a-nombre">Nombre</label><input id="a-nombre" required maxlength="100"></div>
+          <div><label for="a-tipo">Tipo</label><select id="a-tipo" required></select></div>
+          <div><label for="a-banco">Banco</label><input id="a-banco" maxlength="100"></div>
+          <div><label for="a-clabe">CLABE</label><input id="a-clabe" inputmode="numeric" maxlength="18" pattern="\d{18}" placeholder="18 dígitos"></div>
+          <div class="ancho"><label for="a-desc">Descripción corta</label><input id="a-desc" maxlength="255"></div>
+        </div>
+        <div class="acciones-form">
+          <button type="submit" class="primario">Guardar</button>
+          <button type="button" class="secundario" data-cancelar>Cancelar</button>
+        </div>
+      </form>
+
+      <div class="barra">
+        <div class="filtros" role="group" aria-label="Filtrar por tipo" id="filtros-tipo-cuenta"></div>
+        <label class="check"><input type="checkbox" id="a-solo-activas"> Solo activas</label>
+      </div>
+
+      <div class="tabla-envoltura caja-tabla">
+        <table id="tabla-cuentas-admin">
+          <thead><tr><th>Nombre</th><th>Tipo</th><th>Banco</th><th>Referencia</th><th>Estado</th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <p class="vacio" hidden></p>
+      </div>
+    </section>
+
+    <!-- ===================== Dashboard administrativo: Conceptos ===================== -->
+    <section id="vista-conceptos" class="vista admin" hidden aria-labelledby="titulo-conceptos">
+      <div class="admin-cabecera">
+        <div>
+          <h2 id="titulo-conceptos">Conceptos</h2>
+          <p class="sub">¿Por qué entra o sale el dinero, y en qué cuenta se permite?</p>
+        </div>
+        <button type="button" class="primario" id="btn-nuevo-concepto" data-permiso="concepts.write">+ Nuevo concepto</button>
+      </div>
+
+      <div class="admin-aviso aviso" role="alert" hidden></div>
+
+      <form class="panel-alta" id="form-concepto" hidden novalidate autocomplete="off">
+        <h3>Nuevo concepto</h3>
+        <p class="ayuda chica">Un concepto es de ingreso o de egreso, no de las dos cosas.</p>
+        <div class="campos">
+          <div><label for="c-nombre">Nombre</label><input id="c-nombre" required maxlength="100"></div>
+          <div><label for="c-tipo">Tipo</label>
+            <select id="c-tipo" required><option value="INCOME">Ingreso</option><option value="EXPENSE">Egreso</option></select></div>
+          <div class="ancho"><label for="c-desc">Descripción corta</label><input id="c-desc" maxlength="255"></div>
+        </div>
+        <div class="acciones-form">
+          <button type="submit" class="primario">Guardar</button>
+          <button type="button" class="secundario" data-cancelar>Cancelar</button>
+        </div>
+      </form>
+
+      <div class="dos-columnas">
+        <section class="caja-tabla" aria-labelledby="titulo-catalogo">
+          <h3 id="titulo-catalogo">Catálogo <span class="sub">(<code>concepts</code>)</span></h3>
+          <div class="barra">
+            <div class="filtros" role="group" aria-label="Filtrar por tipo">
+              <button type="button" class="filtro activo" data-filtro-conceptos="todos">Todos</button>
+              <button type="button" class="filtro" data-filtro-conceptos="INCOME">Ingreso</button>
+              <button type="button" class="filtro" data-filtro-conceptos="EXPENSE">Egreso</button>
+            </div>
+            <label class="check"><input type="checkbox" id="c-solo-activos"> Solo activos</label>
+          </div>
+          <div class="tabla-envoltura">
+            <table id="tabla-conceptos">
+              <thead><tr><th>Concepto</th><th>Tipo</th><th>Estado</th></tr></thead>
+              <tbody></tbody>
+            </table>
+            <p class="vacio" hidden></p>
+          </div>
+        </section>
+
+        <section class="caja-tabla" aria-labelledby="titulo-por-cuenta">
+          <h3 id="titulo-por-cuenta">Conceptos de una cuenta <span class="sub">(<code>accountConcepts</code>)</span></h3>
+          <label for="cc-cuenta">Cuenta</label>
+          <select id="cc-cuenta"></select>
+          <form id="form-asignar" class="asignar" data-permiso="concepts.write" novalidate>
+            <div>
+              <label for="cc-concepto">Concepto a permitir</label>
+              <select id="cc-concepto"></select>
+            </div>
+            <button type="submit" class="primario">Asignar</button>
+          </form>
+          <ul id="lista-permitidos" class="lista-permitidos"></ul>
+          <p class="vacio" id="permitidos-vacio" hidden></p>
+          <p class="nota chica">Un movimiento solo puede usar un concepto asignado a su cuenta. Quitar no borra el concepto del catálogo ni los movimientos viejos.</p>
+        </section>
+      </div>
+    </section>
+
+    <!-- Estado comun de las vistas administrativas: sin permiso de lectura -->
+    <section id="admin-denegado" class="estado" hidden>
+      <h2>Acceso denegado</h2>
+      <p id="admin-denegado-texto"></p>
+    </section>
+    </div>
+    </div>
   </div>
+
+  <!-- Confirmacion de baja logica -->
+  <dialog id="dlg-desactivar" aria-labelledby="dlg-titulo">
+    <form method="dialog">
+      <h2 id="dlg-titulo">Desactivar membresía</h2>
+      <p id="dlg-texto"></p>
+      <p class="nota">No se borra nada: la fila sigue en la base con estado inactivo y su historial se conserva.</p>
+      <div class="acciones-form">
+        <button value="si" class="primario peligro">Desactivar</button>
+        <button value="no" class="secundario">Cancelar</button>
+      </div>
+    </form>
+  </dialog>
 
   <script src="config.js"></script>
   <script src="app.js"></script>
+  <script src="admin.js"></script>
 </body>
 </html>

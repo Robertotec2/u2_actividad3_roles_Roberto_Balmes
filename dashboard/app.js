@@ -1,6 +1,6 @@
 "use strict";
 
-// Dashboard financiero - Unidad 3 Actividad 1
+// Dashboard financiero - Unidad 3 Actividad 1 (el administrativo vive en admin.js, Actividad 2)
 // El backend es la unica fuente de calculo: aqui solo se piden datos a GraphQL y se formatean.
 
 const API = (window.DASHBOARD_CONFIG && window.DASHBOARD_CONFIG.graphqlUrl) || "/graphql";
@@ -22,6 +22,7 @@ query MiSesion {
     company { id name rfc }
     user { name email }
     role { code name }
+    permissions
   }
 }`;
 
@@ -79,6 +80,8 @@ function borrar(clave) {
 }
 
 let token = leer(CLAVE_TOKEN);
+// Sesion del API (mySession): empresa, usuario, rol y permisos del rol
+let sesion = null;
 let temporizadorVencimiento = null;
 let peticionActual = 0;
 
@@ -94,7 +97,7 @@ class ErrorApi extends Error {
 function clasificar(mensaje) {
   if (ERRORES_SESION.some((m) => mensaje.startsWith(m))) return "sesion";
   if (ERRORES_PERMISO.some((m) => mensaje.startsWith(m))) return "permiso";
-  if (/fromDate|toDate|Date/.test(mensaje)) return "fechas";
+  if (/fromDate|toDate|DateTime|Date/.test(mensaje) && !/idempotencyKey/.test(mensaje)) return "fechas";
   return "otro";
 }
 
@@ -199,6 +202,7 @@ function mostrarLogin(mensaje, tipo = "error") {
 
 function cerrarSesion(mensaje, tipo) {
   token = null;
+  sesion = null;
   borrar(CLAVE_TOKEN);
   peticionActual++; // descarta respuestas que lleguen despues
   mostrarLogin(mensaje, tipo);
@@ -221,6 +225,7 @@ async function entrarAlDashboard() {
 
   try {
     const { mySession: s } = await graphql(SESION);
+    sesion = s;
     $("#empresa-nombre").textContent = s.company.name;
     $("#empresa-rfc").textContent = `RFC ${s.company.rfc} · Empresa #${s.company.id}`;
     $("#usuario-nombre").textContent = s.user.name;
@@ -228,11 +233,20 @@ async function entrarAlDashboard() {
   } catch (e) {
     if (e.tipo === "sesion") return cerrarSesion(mensajeSesion(e));
     $("#empresa-nombre").textContent = "Empresa";
+    sesion = { permissions: [] };
   }
 
-  const [desde, hasta] = periodoInicial();
-  $("#fromDate").value = desde;
-  $("#toDate").value = hasta;
+  $("#fromDate").value = "";
+  navegar(); // admin.js: abre la seccion de la URL (#/financiero por omision)
+}
+
+// Se llama cada vez que se abre la seccion financiera
+function abrirFinanciero() {
+  if (!$("#fromDate").value || !$("#toDate").value) {
+    const [desde, hasta] = periodoInicial();
+    $("#fromDate").value = desde;
+    $("#toDate").value = hasta;
+  }
   consultar();
 }
 
@@ -460,10 +474,4 @@ $("#btn-salir").addEventListener("click", () => {
   cerrarSesion("Cerraste sesión.", "aviso");
 });
 
-// ---------- Inicio ----------
-
-if (token) {
-  entrarAlDashboard();
-} else {
-  mostrarLogin(null);
-}
+// El inicio (login o dashboard) lo hace admin.js cuando ya cargo el enrutador.

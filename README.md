@@ -2,7 +2,26 @@
 
 Integrantes: Roberto Balmes Solis, David Romero
 
-## Unidad 3 Actividad 1 - Dashboard financiero (lo mas reciente)
+## Unidad 3 Actividad 2 - Dashboard administrativo e idempotencia (lo mas reciente)
+
+Mismo cliente de `dashboard/`, con un menu: **Dashboard financiero** (actividad 1) y **Dashboard administrativo**
+(Usuarios, Cuentas, Conceptos). Mismos comandos de arranque que abajo; la migracion `003` se aplica sola al arrancar.
+
+- Entrar en http://localhost:8000/dashboard/ con `roberto.demo@ingresos.test` / `demo123` (ADMINISTRADOR, el rol con el
+  que probamos la escritura) y elegir la seccion en el menu. `david.demo@ingresos.test` (CONSULTA) ve las tablas sin botones.
+- `createTransaction` acepta `idempotencyKey`: la misma llave devuelve el mismo movimiento; la llave y el movimiento se
+  guardan en el mismo COMMIT (tabla `idempotency_keys`). Pruebas: `python -m unittest -v tests.test_idempotencia`.
+- Backend nuevo: `accountConcepts`, `removeConceptFromAccount`, `mySession.permissions`, `activeOnly` en `accounts` y
+  `concepts`, y campos de cuenta `accountType`, `bankName`, `clabeMasked`, `description`.
+
+| Entregable | Archivo |
+|---|---|
+| README corto (como entrar, rol de prueba) | `unidad3_actividad2/README.md` |
+| Idempotencia explicada | `unidad3_actividad2/idempotencia.md` |
+| Evidencias y capturas | `unidad3_actividad2/evidencias.md` y `unidad3_actividad2/capturas/` |
+| Guion de la demo final | `unidad3_actividad2/guion_demo.md` |
+
+## Unidad 3 Actividad 1 - Dashboard financiero
 
 Cliente web (HTML + CSS + JavaScript, sin dependencias) en `dashboard/`, servido por el mismo FastAPI.
 

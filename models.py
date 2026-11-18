@@ -53,6 +53,11 @@ class AccountModel(Base):
     name = Column(String(100), nullable=False)
     balance = Column(Numeric(12, 2), nullable=False, default=0)
     is_active = Column(Boolean, nullable=False, default=True)
+    # Unidad 3 Actividad 2: datos del catalogo de cuentas que pinta el dashboard administrativo
+    account_type = Column(String(20), nullable=False, default="OTHER")
+    bank_name = Column(String(100))
+    clabe = Column(String(18))
+    description = Column(String(255))
 
 
 class ConceptModel(Base):
@@ -63,6 +68,7 @@ class ConceptModel(Base):
     name = Column(String(100), nullable=False)
     type = Column(String(10), nullable=False)
     is_active = Column(Boolean, nullable=False, default=True)
+    description = Column(String(255))
 
 
 class AccountConceptModel(Base):
@@ -72,6 +78,8 @@ class AccountConceptModel(Base):
     account_id = Column(Integer, ForeignKey("accounts.id"), nullable=False)
     concept_id = Column(Integer, ForeignKey("concepts.id"), nullable=False)
     is_active = Column(Boolean, nullable=False, default=True)
+
+    concept = relationship("ConceptModel")
 
 
 class TransactionModel(Base):
@@ -91,6 +99,26 @@ class TransactionModel(Base):
     is_active = Column(Boolean, nullable=False, default=True)
 
     __table_args__ = (Index("ix_transactions_account_date", "account_id", "transaction_date"),)
+
+
+class IdempotencyKeyModel(Base):
+    """Unidad 3 Actividad 2: una llave por accion del cliente.
+
+    La llave y el movimiento entran en el mismo COMMIT. El indice unico (empresa, operacion, llave)
+    es el que impide el segundo INSERT aunque dos peticiones lleguen al mismo tiempo.
+    """
+    __tablename__ = "idempotency_keys"
+
+    id = Column(Integer, primary_key=True, index=True)
+    company_id = Column(Integer, ForeignKey("companies.id"), nullable=False)
+    operation = Column(String(50), nullable=False)
+    idem_key = Column(String(100), nullable=False)
+    request_hash = Column(String(64), nullable=False)
+    transaction_id = Column(Integer, ForeignKey("transactions.id"), nullable=False)
+    company_user_id = Column(Integer, ForeignKey("company_users.id"), nullable=False)
+    created_at = Column(DateTime, nullable=False, default=ahora_utc)
+
+    __table_args__ = (UniqueConstraint("company_id", "operation", "idem_key", name="uq_idempotency_key"),)
 
 
 class RoleModel(Base):

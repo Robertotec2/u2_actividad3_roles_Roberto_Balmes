@@ -1,0 +1,11 @@
+test_llave_corta (tests.test_idempotencia.IdempotenciaTest.test_llave_corta) ... ok
+test_misma_llave_mismo_movimiento (tests.test_idempotencia.IdempotenciaTest.test_misma_llave_mismo_movimiento) ... ok
+test_misma_llave_otros_datos (tests.test_idempotencia.IdempotenciaTest.test_misma_llave_otros_datos) ... ok
+test_otra_llave_otro_movimiento (tests.test_idempotencia.IdempotenciaTest.test_otra_llave_otro_movimiento) ... ok
+test_reintentos_simultaneos (tests.test_idempotencia.IdempotenciaTest.test_reintentos_simultaneos) ... ok
+test_sin_llave_sigue_funcionando (tests.test_idempotencia.IdempotenciaTest.test_sin_llave_sigue_funcionando) ... ok
+
+----------------------------------------------------------------------
+Ran 6 tests in 3.758s
+
+OK

@@ -1,4 +1,6 @@
 import hashlib
+import json
+import re
 import secrets
 from datetime import date, datetime, timezone
 from decimal import Decimal
@@ -6,6 +8,7 @@ from enum import Enum
 from typing import Optional
 
 import strawberry
+from sqlalchemy.exc import IntegrityError
 
 from auth import crear_token, leer_actor
 from balances import CENTAVO, dinero, balance_cuenta, balance_general
@@ -14,6 +17,7 @@ from database import SessionLocal
 from models import (
     CompanyModel, UserModel, CompanyUserModel, AccountModel, ConceptModel, AccountConceptModel,
     TransactionModel, RoleModel, PermissionModel, RolePermissionModel, CompanyUserRoleModel,
+    IdempotencyKeyModel,
 )
 
 
@@ -73,6 +77,21 @@ def rol_de(db, company_user_id: int) -> Optional[RoleModel]:
     return a.role if a else None
 
 
+def permisos_de(db, role_id: int) -> list[str]:
+    filas = (
+        db.query(PermissionModel.code)
+        .join(RolePermissionModel, RolePermissionModel.permission_id == PermissionModel.id)
+        .filter(
+            RolePermissionModel.role_id == role_id,
+            RolePermissionModel.is_active.is_(True),
+            PermissionModel.is_active.is_(True),
+        )
+        .order_by(PermissionModel.code)
+        .all()
+    )
+    return [f[0] for f in filas]
+
+
 def asignar_rol(db, company_user_id: int, role_id: int) -> CompanyUserRoleModel:
     db.query(CompanyUserRoleModel).filter(
         CompanyUserRoleModel.company_user_id == company_user_id,
@@ -87,6 +106,17 @@ def asignar_rol(db, company_user_id: int, role_id: int) -> CompanyUserRoleModel:
 class TransactionType(Enum):
     INCOME = "INCOME"
     EXPENSE = "EXPENSE"
+
+
+@strawberry.enum
+class AccountType(Enum):
+    CASH = "CASH"
+    DEBIT = "DEBIT"
+    CREDIT = "CREDIT"
+    SAVINGS = "SAVINGS"
+    INVESTMENT = "INVESTMENT"
+    WALLET = "WALLET"
+    OTHER = "OTHER"
 
 
 @strawberry.enum
@@ -165,6 +195,11 @@ class Account:
     name: str
     balance: Decimal
     is_active: bool
+    account_type: AccountType
+    bank_name: Optional[str]
+    # La CLABE completa no sale del API: solo los ultimos cuatro digitos
+    clabe_masked: Optional[str]
+    description: Optional[str]
 
 
 @strawberry.type
@@ -174,6 +209,7 @@ class Concept:
     name: str
     type: TransactionType
     is_active: bool
+    description: Optional[str]
 
 
 @strawberry.type
@@ -182,6 +218,7 @@ class AccountConcept:
     account_id: strawberry.ID
     concept_id: strawberry.ID
     is_active: bool
+    concept: Concept
 
 
 @strawberry.type
@@ -255,6 +292,8 @@ class SessionInfo:
     company: Company
     user: User
     role: Optional[Role]
+    # Unidad 3 Actividad 2: el dashboard decide que botones dibujar; el servidor sigue validando
+    permissions: list[str]
 
 
 @strawberry.type
@@ -269,9 +308,24 @@ def a_user(m): return User(id=m.id, name=m.name, email=m.email, is_active=m.is_a
 def a_role(m): return Role(id=m.id, code=m.code, name=m.name, description=m.description, is_active=m.is_active)
 def a_perm(m): return Permission(id=m.id, code=m.code, name=m.name, description=m.description, is_active=m.is_active)
 def a_rp(m): return RolePermission(id=m.id, role=a_role(m.role), permission=a_perm(m.permission), is_active=m.is_active)
-def a_account(m): return Account(id=m.id, company_id=m.company_id, name=m.name, balance=dinero(m.balance), is_active=m.is_active)
-def a_concept(m): return Concept(id=m.id, company_id=m.company_id, name=m.name, type=TransactionType(m.type), is_active=m.is_active)
-def a_ac(m): return AccountConcept(id=m.id, account_id=m.account_id, concept_id=m.concept_id, is_active=m.is_active)
+def mascara_clabe(clabe):
+    return f"•••• {clabe[-4:]}" if clabe else None
+
+
+def a_account(m):
+    return Account(id=m.id, company_id=m.company_id, name=m.name, balance=dinero(m.balance), is_active=m.is_active,
+                   account_type=AccountType(m.account_type or "OTHER"), bank_name=m.bank_name,
+                   clabe_masked=mascara_clabe(m.clabe), description=m.description)
+
+
+def a_concept(m):
+    return Concept(id=m.id, company_id=m.company_id, name=m.name, type=TransactionType(m.type),
+                   is_active=m.is_active, description=m.description)
+
+
+def a_ac(m):
+    return AccountConcept(id=m.id, account_id=m.account_id, concept_id=m.concept_id, is_active=m.is_active,
+                          concept=a_concept(m.concept))
 
 
 def a_cu(db, m):
@@ -298,6 +352,74 @@ def leer_lector_balances(db, info):
     actor_id = leer_actor(db, info)
     exigir_permiso(db, actor_id, "accounts.read")
     return exigir_permiso(db, actor_id, "transactions.read")
+
+
+def texto(valor: Optional[str], campo: str, maximo: int, requerido: bool = False) -> Optional[str]:
+    limpio = (valor or "").strip()
+    if not limpio:
+        if requerido:
+            raise ValueError(f"{campo} es obligatorio")
+        return None
+    if len(limpio) > maximo:
+        raise ValueError(f"{campo} no puede pasar de {maximo} caracteres")
+    return limpio
+
+
+CORREO = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+
+def cuenta_de_empresa(db, actor, account_id) -> AccountModel:
+    try:
+        a = db.get(AccountModel, int(account_id))
+    except ValueError:
+        a = None
+    if a is None or a.company_id != actor.company_id:
+        raise ValueError("La cuenta no es de tu empresa")
+    return a
+
+
+# ---------- Idempotencia (Unidad 3 Actividad 2) ----------
+
+OPERACION_MOVIMIENTO = "createTransaction"
+
+
+def normalizar_llave(llave: Optional[str]) -> Optional[str]:
+    if llave is None:
+        return None
+    limpia = llave.strip()
+    if not 8 <= len(limpia) <= 100:
+        raise ValueError("idempotencyKey tiene que tener entre 8 y 100 caracteres")
+    return limpia
+
+
+def huella_movimiento(input, monto: Decimal) -> str:
+    # Hash del cuerpo tal como lo mando el cliente (no de lo que calcula el servidor,
+    # como la fecha por omision, que cambiaria en cada reintento)
+    fecha = input.transaction_date
+    if fecha is not None and fecha.tzinfo is not None:
+        fecha = fecha.astimezone(timezone.utc)
+    cuerpo = {
+        "accountId": str(input.account_id),
+        "conceptId": str(input.concept_id),
+        "amount": str(monto),
+        "description": input.description,
+        "transactionDate": fecha.isoformat() if fecha else None,
+    }
+    return hashlib.sha256(json.dumps(cuerpo, sort_keys=True).encode()).hexdigest()
+
+
+def buscar_llave(db, company_id: int, llave: str) -> Optional[IdempotencyKeyModel]:
+    return db.query(IdempotencyKeyModel).filter(
+        IdempotencyKeyModel.company_id == company_id,
+        IdempotencyKeyModel.operation == OPERACION_MOVIMIENTO,
+        IdempotencyKeyModel.idem_key == llave,
+    ).first()
+
+
+def respuesta_guardada(db, guardada: IdempotencyKeyModel, huella: str):
+    if guardada.request_hash != huella:
+        raise ValueError("Esa idempotencyKey ya se uso con otros datos")
+    return a_tx(db.get(TransactionModel, guardada.transaction_id))
 
 
 MAXIMO = Decimal("9999999999.99")  # lo que cabe en Numeric(12, 2)
@@ -386,12 +508,17 @@ class SetRolePermissionsInput:
 @strawberry.input
 class CreateAccountInput:
     name: str
+    account_type: AccountType = AccountType.OTHER
+    bank_name: Optional[str] = None
+    clabe: Optional[str] = None
+    description: Optional[str] = None
 
 
 @strawberry.input
 class CreateConceptInput:
     name: str
     type: TransactionType
+    description: Optional[str] = None
 
 
 @strawberry.input
@@ -407,6 +534,8 @@ class CreateTransactionInput:
     amount: Decimal
     description: Optional[str] = None
     transaction_date: Optional[datetime] = None
+    # Unidad 3 Actividad 2: una llave por accion del cliente (por ejemplo un UUID al pulsar Guardar)
+    idempotency_key: Optional[str] = None
 
 
 @strawberry.type
@@ -424,7 +553,8 @@ class Query:
             cu = db.get(CompanyUserModel, leer_actor(db, info))
             r = rol_de(db, cu.id)
             return SessionInfo(company_user_id=cu.id, company=a_company(cu.company), user=a_user(cu.user),
-                               role=a_role(r) if r else None)
+                               role=a_role(r) if r else None,
+                               permissions=permisos_de(db, r.id) if r and r.is_active else [])
 
     @strawberry.field
     def company_users(self, info: strawberry.Info) -> list[CompanyUser]:
@@ -493,16 +623,34 @@ class Query:
             )
 
     @strawberry.field
-    def accounts(self, info: strawberry.Info) -> list[Account]:
+    def accounts(self, info: strawberry.Info, active_only: Optional[bool] = None) -> list[Account]:
         with SessionLocal() as db:
             actor = exigir_permiso(db, leer_actor(db, info), "accounts.read")
-            return [a_account(a) for a in db.query(AccountModel).filter(AccountModel.company_id == actor.company_id).all()]
+            q = db.query(AccountModel).filter(AccountModel.company_id == actor.company_id)
+            if active_only:
+                q = q.filter(AccountModel.is_active.is_(True))
+            return [a_account(a) for a in q.order_by(AccountModel.id).all()]
 
     @strawberry.field
-    def concepts(self, info: strawberry.Info) -> list[Concept]:
+    def concepts(self, info: strawberry.Info, active_only: Optional[bool] = None) -> list[Concept]:
         with SessionLocal() as db:
             actor = exigir_permiso(db, leer_actor(db, info), "concepts.read")
-            return [a_concept(c) for c in db.query(ConceptModel).filter(ConceptModel.company_id == actor.company_id).all()]
+            q = db.query(ConceptModel).filter(ConceptModel.company_id == actor.company_id)
+            if active_only:
+                q = q.filter(ConceptModel.is_active.is_(True))
+            return [a_concept(c) for c in q.order_by(ConceptModel.id).all()]
+
+    @strawberry.field
+    def account_concepts(self, info: strawberry.Info, account_id: strawberry.ID,
+                         active_only: Optional[bool] = True) -> list[AccountConcept]:
+        # Conceptos permitidos en una cuenta. Por omision solo las relaciones activas.
+        with SessionLocal() as db:
+            actor = exigir_permiso(db, leer_actor(db, info), "concepts.read")
+            cuenta = cuenta_de_empresa(db, actor, account_id)
+            q = db.query(AccountConceptModel).filter(AccountConceptModel.account_id == cuenta.id)
+            if active_only:
+                q = q.filter(AccountConceptModel.is_active.is_(True))
+            return [a_ac(ac) for ac in q.order_by(AccountConceptModel.id).all()]
 
     @strawberry.field
     def account_balance(self, info: strawberry.Info, account_id: strawberry.ID,
@@ -571,9 +719,15 @@ class Mutation:
     def create_company_user(self, input: CreateCompanyUserInput, info: strawberry.Info) -> CompanyUser:
         with SessionLocal() as db:
             actor = exigir_permiso(db, leer_actor(db, info), "company.users.write")
-            if db.query(UserModel).filter(UserModel.email == input.email).first():
+            nombre = texto(input.name, "El nombre", 150, requerido=True)
+            correo = texto(input.email, "El correo", 150, requerido=True).lower()
+            if not CORREO.match(correo):
+                raise ValueError("El correo no tiene un formato valido")
+            if len(input.password or "") < 6:
+                raise ValueError("La contrasena tiene que tener al menos 6 caracteres")
+            if db.query(UserModel).filter(UserModel.email == correo).first():
                 raise ValueError("Ese correo ya esta registrado")
-            u = UserModel(name=input.name, email=input.email, password_hash=hashear(input.password))
+            u = UserModel(name=nombre, email=correo, password_hash=hashear(input.password))
             db.add(u)
             db.flush()
             cu = CompanyUserModel(company_id=actor.company_id, user_id=u.id, is_admin=False)
@@ -726,7 +880,14 @@ class Mutation:
     def create_account(self, input: CreateAccountInput, info: strawberry.Info) -> Account:
         with SessionLocal() as db:
             actor = exigir_permiso(db, leer_actor(db, info), "accounts.write")
-            a = AccountModel(company_id=actor.company_id, name=input.name, balance=0)
+            nombre = texto(input.name, "El nombre de la cuenta", 100, requerido=True)
+            banco = texto(input.bank_name, "El banco", 100)
+            clabe = texto(input.clabe, "La CLABE", 18)
+            if clabe is not None and not re.fullmatch(r"\d{18}", clabe):
+                raise ValueError("La CLABE tiene que tener 18 digitos")
+            a = AccountModel(company_id=actor.company_id, name=nombre, balance=0,
+                             account_type=input.account_type.value, bank_name=banco, clabe=clabe,
+                             description=texto(input.description, "La descripcion", 255))
             db.add(a)
             db.commit()
             db.refresh(a)
@@ -736,7 +897,9 @@ class Mutation:
     def create_concept(self, input: CreateConceptInput, info: strawberry.Info) -> Concept:
         with SessionLocal() as db:
             actor = exigir_permiso(db, leer_actor(db, info), "concepts.write")
-            c = ConceptModel(company_id=actor.company_id, name=input.name, type=input.type.value)
+            nombre = texto(input.name, "El nombre del concepto", 100, requerido=True)
+            c = ConceptModel(company_id=actor.company_id, name=nombre, type=input.type.value,
+                             description=texto(input.description, "La descripcion", 255))
             db.add(c)
             db.commit()
             db.refresh(c)
@@ -756,8 +919,33 @@ class Mutation:
             ).first()
             if ya:
                 raise ValueError("Ese concepto ya esta asignado a la cuenta")
-            ac = AccountConceptModel(account_id=a.id, concept_id=c.id)
-            db.add(ac)
+            # Si la pareja se quito antes, se reactiva la misma fila en lugar de crear otra
+            ac = db.query(AccountConceptModel).filter(
+                AccountConceptModel.account_id == a.id, AccountConceptModel.concept_id == c.id,
+            ).first()
+            if ac:
+                ac.is_active = True
+            else:
+                ac = AccountConceptModel(account_id=a.id, concept_id=c.id)
+                db.add(ac)
+            db.commit()
+            db.refresh(ac)
+            return a_ac(ac)
+
+    @strawberry.mutation
+    def remove_concept_from_account(self, input: AssignConceptToAccountInput, info: strawberry.Info) -> AccountConcept:
+        # Baja logica de la relacion: no toca el catalogo de conceptos ni los movimientos viejos
+        with SessionLocal() as db:
+            actor = exigir_permiso(db, leer_actor(db, info), "concepts.write")
+            a = cuenta_de_empresa(db, actor, input.account_id)
+            ac = db.query(AccountConceptModel).filter(
+                AccountConceptModel.account_id == a.id,
+                AccountConceptModel.concept_id == int(input.concept_id),
+                AccountConceptModel.is_active.is_(True),
+            ).first()
+            if ac is None:
+                raise ValueError("Ese concepto no esta asignado a la cuenta")
+            ac.is_active = False
             db.commit()
             db.refresh(ac)
             return a_ac(ac)
@@ -767,6 +955,14 @@ class Mutation:
         with SessionLocal() as db:
             actor = membresia_activa(db, leer_actor(db, info))
             monto = validar_monto(input.amount)
+            llave = normalizar_llave(input.idempotency_key)
+            huella = huella_movimiento(input, monto)
+            if llave is not None:
+                # Reintento: la llave ya esta en MySQL -> misma respuesta, sin otro INSERT
+                exigir_permiso(db, actor.id, "transactions.write")
+                guardada = buscar_llave(db, actor.company_id, llave)
+                if guardada is not None:
+                    return respuesta_guardada(db, guardada, huella)
             cuando = fecha_operacion(input.transaction_date)
             a = db.get(AccountModel, int(input.account_id))
             c = db.get(ConceptModel, int(input.concept_id))
@@ -785,7 +981,22 @@ class Mutation:
             # captured_at lo pone el servidor (default); el cliente no lo elige
             a.balance = a.balance + monto if c.type == "INCOME" else a.balance - monto
             db.add(t)
-            db.commit()
+            try:
+                if llave is not None:
+                    db.flush()  # para conocer t.id
+                    # La llave y el movimiento van en la misma transaccion: un solo COMMIT
+                    db.add(IdempotencyKeyModel(company_id=actor.company_id, operation=OPERACION_MOVIMIENTO,
+                                               idem_key=llave, request_hash=huella, transaction_id=t.id,
+                                               company_user_id=actor.id))
+                db.commit()
+            except IntegrityError:
+                # Dos peticiones con la misma llave al mismo tiempo: el indice unico rechazo la segunda.
+                # Se deshace este movimiento y se devuelve el que si quedo guardado.
+                db.rollback()
+                guardada = buscar_llave(db, actor.company_id, llave) if llave else None
+                if guardada is None:
+                    raise
+                return respuesta_guardada(db, guardada, huella)
             db.refresh(t)
             return a_tx(t)
 

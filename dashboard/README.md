@@ -1,4 +1,4 @@
-# Dashboard financiero (Unidad III · Actividad 1)
+# Dashboard del Sistema General de Ingresos (Unidad III · Actividades 1 y 2)
 
 Integrantes: **Roberto Balmes Solís** y **David Romero**
 
@@ -15,7 +15,8 @@ lo que devuelve el API.
 |---|---|
 | `index.html` | Pantallas de login y dashboard; cada bloque del boceto está marcado con un comentario |
 | `styles.css` | Estilos (jerarquía visual, rojo para saldos negativos, naranja para profit negativo) |
-| `app.js` | Login, consulta `IndicadoresEmpresa`, formato MXN y manejo de errores |
+| `app.js` | Login, sesión, dashboard financiero (`IndicadoresEmpresa`), formato MXN y manejo de errores |
+| `admin.js` | Actividad 2: menú/enrutador y dashboard administrativo (Usuarios, Cuentas, Conceptos) |
 | `config.js` | URL del API (`/graphql` por defecto) |
 
 ## Cómo levantarlo
@@ -90,3 +91,20 @@ Período de demostración: **2026-10-26 al 2026-10-30** (botón “26–30 oct 2
 - **Números rojos:** saldo negativo en rojo con etiqueta “En rojo”; un profit negativo se pinta en naranja y no
   marca la cuenta como en rojo si su saldo final sigue positivo.
 - No hay `companyId` libre ni `actorCompanyUserId`: la empresa y la identidad salen del token.
+
+## Dashboard administrativo (Actividad 2)
+
+El menú de la izquierda separa **Dashboard financiero** (`#/financiero`) del **Dashboard administrativo**
+(`#/admin/usuarios`, `#/admin/cuentas`, `#/admin/conceptos`). Mismo login, mismo token, mismo API.
+
+| Pantalla | Pregunta | Lectura | Escritura (permiso) |
+|---|---|---|---|
+| Usuarios | ¿Quién pertenece? | `companyUsers { id isAdmin isActive user { name email } role { code name } }` | `createCompanyUser`, `deactivateCompanyUser` (`company.users.write`) |
+| Cuentas | ¿Dónde está el dinero? | `accounts { id name accountType bankName clabeMasked description isActive }` | `createAccount` (`accounts.write`) |
+| Conceptos | ¿Por qué se mueve y en qué cuenta se permite? | `concepts { id name type description isActive }` y `accountConcepts(accountId) { concept { … } }` | `createConcept`, `assignConceptToAccount`, `removeConceptFromAccount` (`concepts.write`) |
+
+- Los botones de alta y baja se dibujan solo si `mySession.permissions` incluye el permiso de escritura.
+- Búsqueda y filtros (activos, tipo de cuenta, ingreso/egreso) trabajan sobre la lista ya cargada; no hay endpoints extra.
+- Después de cada mutation correcta la tabla se vuelve a consultar; los errores del API se muestran en la pantalla.
+- La contraseña solo existe en el formulario de alta. Las bajas son lógicas (`isActive = false`).
+- Conteos de usuarios = personas (sin MXN). Si hubiera más de un administrador principal se marca como error de datos.
