@@ -108,3 +108,5 @@ El menú de la izquierda separa **Dashboard financiero** (`#/financiero`) del **
 - Después de cada mutation correcta la tabla se vuelve a consultar; los errores del API se muestran en la pantalla.
 - La contraseña solo existe en el formulario de alta. Las bajas son lógicas (`isActive = false`).
 - Conteos de usuarios = personas (sin MXN). Si hubiera más de un administrador principal se marca como error de datos.
+- Diseño de las figuras 9–12: barra superior azul marino, menú con íconos (Resumen, Usuarios, Cuentas, Conceptos), tablas
+  con encabezado oscuro y formulario de alta fijo a la derecha. Mascota del equipo: **Monedín** (personaje original en SVG).

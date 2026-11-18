@@ -14,8 +14,8 @@ python pruebas/u3_actividad1_datos.py      # datos de demostración, si la base 
 ```
 
 1. Abrir **http://localhost:8000/dashboard/** e iniciar sesión.
-2. En el menú de la izquierda, bajo **Dashboard administrativo**, elegir **Usuarios**, **Cuentas** o **Conceptos**.
-   **Dashboard financiero** sigue en el mismo menú. Cada sección tiene su propia dirección:
+2. En el menú de la izquierda, bajo **Administración**, elegir **Usuarios**, **Cuentas** o **Conceptos**.
+   **Resumen financiero** (el dashboard de la Actividad 1) sigue en el mismo menú. Cada sección tiene su propia dirección:
    `#/financiero`, `#/admin/usuarios`, `#/admin/cuentas`, `#/admin/conceptos`.
 3. **Cerrar sesión** borra el token y vuelve al login. Si el token falta o el API lo rechaza, también se vuelve al login.
 
@@ -41,7 +41,7 @@ validando cada mutation con `exigir_permiso`; ocultar el botón no es la segurid
 | Cliente con las tres secciones | `dashboard/index.html`, `dashboard/admin.js`, `dashboard/styles.css` |
 | Evidencias con capturas | `unidad3_actividad2/evidencias.md` y `unidad3_actividad2/capturas/` |
 | Guion de la demostración final | `unidad3_actividad2/guion_demo.md` |
-| Boceto | No cambió: seguimos el wireframe de la figura 9 (menú a la izquierda, título, acción principal, búsqueda/filtros y tabla) |
+| Boceto | No hay boceto nuevo: el diseño sigue las figuras 9–12 del PDF (barra superior azul marino, menú con íconos, tablas con encabezado oscuro, formulario de alta a la derecha) |
 
 ## Cambios al backend
 
@@ -62,3 +62,9 @@ No hay un modelo nuevo de negocio; se completó lo que la pantalla necesitaba le
 Nombres que usamos de nuestro esquema en lugar de los del ejemplo del PDF: `type` en lugar de `conceptType`
 (el campo ya existía así desde el Parcial I), y `companyUsers`/`accounts`/`concepts` sin `companyId`, porque la
 empresa sale del token, no de un argumento que el cliente pueda cambiar.
+
+## Mascota del equipo
+
+**Monedín** aparece en el login y al pie del menú, y saluda por su nombre a quien inició sesión con la pregunta de la
+pantalla (“¿Quién pertenece?”, “¿Dónde está el dinero?”…). Es un personaje original al estilo Pokémon, que pidió David,
+dibujado en SVG dentro de `dashboard/index.html`: no usa imágenes de terceros ni descarga nada.

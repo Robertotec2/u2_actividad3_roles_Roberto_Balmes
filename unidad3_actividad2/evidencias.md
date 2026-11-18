@@ -45,37 +45,42 @@ Pruebas automatizadas (`salida_tests_idempotencia.txt`): 6 OK, incluida la de 5 
 
 ## Parte 2 · Dashboard administrativo (usuario Roberto Balmes, rol ADMINISTRADOR)
 
-### 5. Una sola aplicación: el menú distingue el financiero del administrativo
+El diseño sigue las figuras 9 a 12 de la actividad: barra superior azul marino con el nombre del dashboard, la empresa y
+**Cerrar sesión**; menú a la izquierda con íconos (Resumen, Usuarios, Cuentas, Conceptos) y la opción activa en verde
+azulado; encabezados de tabla oscuros y el formulario de alta fijo a la derecha. Al pie del menú está **Monedín**, la
+mascota del equipo (un personaje original, idea de David), que saluda a quien inició sesión.
 
-El dashboard financiero de la Actividad 1 se conserva; se le agregó el menú. En noviembre ya aparecen los dos egresos
-de renta de la prueba de idempotencia (Egresos $200.00, no $300.00).
+### 5. Login
 
-![Menú y dashboard financiero](capturas/05_menu_dashboard_financiero.png)
+![Login](capturas/05_login_mascota.png)
 
-### 6. Usuarios (`companyUsers`)
+### 6. Una sola aplicación: Resumen financiero y Administración en el mismo menú
 
-Coincide con `companyUsers` en GraphiQL. Conteos de personas (sin MXN): activos, administrador principal (1) e inactivos.
-El rol es de solo lectura; Invitado aparece “Sin rol”. El administrador principal no tiene botón Desactivar.
+El dashboard financiero de la Actividad 1 se conserva (periodo 26–30 oct: saldo final $1,600.00).
 
-![Usuarios](capturas/06_usuarios.png)
+![Resumen financiero](capturas/06_menu_resumen_financiero.png)
 
-### 7–8. Alta de usuario
+### 7. Usuarios (`companyUsers`) — figura 10
 
-El formulario pide nombre, correo y contraseña (no pide `isAdmin`). Al guardar, la tabla se vuelve a consultar.
+Conteos de personas (sin MXN), búsqueda, **Nuevo usuario** y la tabla con Nombre, Correo, Rol (solo lectura),
+Administrador y Estado. El formulario de la derecha pide nombre, correo y contraseña (no pide `isAdmin`).
 
-![Formulario de alta](capturas/07_usuarios_formulario_alta.png)
+![Usuarios](capturas/07_usuarios.png)
+
+### 8. Alta de usuario (Luis Herrera)
+
+Al guardar, la tabla se vuelve a consultar y aparece la fila nueva, sin rol.
+
 ![Alta correcta](capturas/08_usuarios_alta_correcta.png)
 
 ### 9. Error: correo duplicado
-
-El mensaje del servidor se lee en la pantalla.
 
 ![Correo duplicado](capturas/09_error_correo_duplicado.png)
 
 ### 10–11. Baja lógica
 
-La confirmación dice que la persona deja de operar y que el historial se conserva. La fila sigue, en gris, con estado
-**Inactivo**; el conteo de inactivos pasa a 1.
+La confirmación dice que la persona deja de operar y que el historial se conserva. La fila de Luis sigue, en gris, como
+**Inactivo**; los inactivos pasan a 2 (Ana Canul quedó inactiva en una prueba anterior).
 
 ![Confirmar desactivar](capturas/10_usuarios_confirmar_desactivar.png)
 ![Baja lógica](capturas/11_usuarios_baja_logica.png)
@@ -84,30 +89,30 @@ La confirmación dice que la persona deja de operar y que el historial se conser
 
 ![GraphiQL companyUsers](capturas/19_graphiql_companyUsers_isActive_false.png)
 
-### 13–15. Cuentas (`accounts`)
+### 13–15. Cuentas (`accounts`) — figura 11
 
-Alta de **BBVA Empresarial** (Débito, BBVA, CLABE de 18 dígitos). En la tabla el tipo sale con su etiqueta (Efectivo,
-Débito, Ahorro…) y la referencia enmascarada (`CLABE •••• 7893`); Caja no tiene banco. Filtros: Todas, por tipo y Solo activas.
+Alta de **Banorte Ahorro** (Ahorro, Banorte, CLABE de 18 dígitos). El tipo sale con su etiqueta y la CLABE enmascarada
+(`•••• 7788`); Caja no tiene banco. Filtros: Todas, los tipos que tiene la empresa y Activas.
 
 ![Formulario de cuenta](capturas/12_cuentas_formulario_alta.png)
 ![Cuentas](capturas/13_cuentas.png)
-![Filtro Débito](capturas/14_cuentas_filtro_debito.png)
+![Filtro Ahorro](capturas/14_cuentas_filtro_ahorro.png)
 
-### 16–19. Conceptos (`concepts` + `accountConcepts`)
+### 16–19. Conceptos (`concepts` + `accountConcepts`) — figura 12
 
-Se creó **Comisiones bancarias** (Egreso) y se asignó a BBVA Empresarial. Asignarlo otra vez muestra el error de
-duplicado. Al quitarlo, el concepto sigue en el catálogo y ya no aparece entre los permitidos de la cuenta.
+Se creó **Nómina** (Egreso) y se asignó a Banco: aparece con palomita en “Conceptos de la cuenta Banco”. Asignarlo otra
+vez muestra el error de duplicado. Al quitarlo sigue en el catálogo y ya no sale entre los permitidos.
 
 ![Concepto asignado](capturas/15_conceptos_asignado.png)
 ![Error concepto ya asignado](capturas/16_error_concepto_ya_asignado.png)
 ![Quitado, sigue en el catálogo](capturas/17_conceptos_quitado_sigue_en_catalogo.png)
-![Banco, filtro Egreso](capturas/18_conceptos_banco_filtro_egreso.png)
+![Filtro Egreso](capturas/18_conceptos_filtro_egreso.png)
 
 ## Permisos
 
 ### 20–22. Usuario de solo consulta (David Romero, CONSULTA)
 
-Ve las tres tablas y no ve Nuevo usuario, Desactivar, Nueva cuenta, Nuevo concepto, Asignar ni Quitar.
+Ve las tres tablas y no ve Nuevo usuario, el formulario de alta, Desactivar, Nueva cuenta, Nuevo concepto, Asignar ni Quitar.
 
 ![CONSULTA usuarios](capturas/20_consulta_usuarios_sin_botones.png)
 ![CONSULTA cuentas](capturas/21_consulta_cuentas_sin_botones.png)
@@ -121,10 +126,10 @@ Ve las tres tablas y no ve Nuevo usuario, Desactivar, Nueva cuenta, Nuevo concep
 
 ### 24. Celular (390 px)
 
-El menú pasa arriba y las columnas se apilan; la página no tiene scroll horizontal (la tabla del catálogo se desplaza
-dentro de su recuadro).
+El menú pasa arriba, el formulario queda debajo de la tabla y la página no tiene scroll horizontal (la tabla se
+desplaza dentro de su recuadro).
 
-![Celular](capturas/24_conceptos_celular.png)
+![Celular](capturas/24_usuarios_celular.png)
 
 ## Lista de comprobación del PDF
 
@@ -133,12 +138,12 @@ dentro de su recuadro).
 | I-1 | Misma `idempotencyKey` dos veces → mismo movimiento | ✅ id 64 y 64 | 01, 02 |
 | I-2 | Otra llave, mismo monto → segundo movimiento | ✅ id 65 | 03 |
 | I-3 | En MySQL una sola fila para la primera llave | ✅ | `salida_mysql_idempotencia.txt` |
-| 1 | Login de la actividad 1 y abrir Dashboard administrativo | ✅ | 05, 06 |
-| 2 | Tabla de usuarios = `companyUsers` en GraphiQL | ✅ | 06, 19 |
+| 1 | Login de la actividad 1 y abrir Dashboard administrativo | ✅ | 05, 06, 07 |
+| 2 | Tabla de usuarios = `companyUsers` en GraphiQL | ✅ | 07, 19 |
 | 3 | Crear usuario; el correo duplicado se rechaza en pantalla | ✅ | 08, 09 |
 | 4 | Desactivarlo; la fila sigue inactiva y GraphiQL muestra `isActive: false` | ✅ | 11, 19 |
-| 5 | Crear una cuenta | ✅ BBVA Empresarial | 13 |
-| 6 | Crear concepto de egreso, asignarlo; asignarlo otra vez da error | ✅ | 15, 16 |
+| 5 | Crear una cuenta | ✅ Banorte Ahorro | 13 |
+| 6 | Crear concepto de egreso, asignarlo; asignarlo otra vez da error | ✅ Nómina → Banco | 15, 16 |
 | 7 | Quitarlo; sigue en el catálogo | ✅ | 17 |
 | 8 | Usuario de solo consulta ve las tablas sin botones de alta | ✅ | 20–22 |
 | — | La contraseña no aparece en ninguna tabla ni consulta | ✅ solo existe en el formulario de alta | 07 |

@@ -116,9 +116,9 @@ const textoError = (m) => MENSAJES[m] || m;
 
 const RUTAS = {
   financiero: { vista: "#vista-financiero", marca: "Dashboard financiero", abrir: () => abrirFinanciero() },
-  usuarios: { vista: "#vista-usuarios", marca: "Dashboard administrativo · Usuarios", lectura: "company.users.read", abrir: () => cargarUsuarios() },
-  cuentas: { vista: "#vista-cuentas", marca: "Dashboard administrativo · Cuentas", lectura: "accounts.read", abrir: () => cargarCuentas() },
-  conceptos: { vista: "#vista-conceptos", marca: "Dashboard administrativo · Conceptos", lectura: "concepts.read", abrir: () => cargarConceptos() },
+  usuarios: { vista: "#vista-usuarios", marca: "Dashboard administrativo", lectura: "company.users.read", abrir: () => cargarUsuarios() },
+  cuentas: { vista: "#vista-cuentas", marca: "Dashboard administrativo", lectura: "accounts.read", abrir: () => cargarCuentas() },
+  conceptos: { vista: "#vista-conceptos", marca: "Dashboard administrativo", lectura: "concepts.read", abrir: () => cargarConceptos() },
 };
 
 const estado = {
@@ -174,11 +174,13 @@ function navegar() {
     if (activo) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current");
   });
   $("#seccion-marca").textContent = def.marca;
-  $("#empresa-moneda").hidden = ruta !== "financiero"; // en administracion no hay importes: sin MXN
-  document.title = `${def.marca} · Sistema General de Ingresos`;
+  const titulo = ruta === "financiero" ? "Resumen financiero" : ruta[0].toUpperCase() + ruta.slice(1);
+  document.title = `${titulo} · ${def.marca}`;
+  saludarMascota();
 
   document.querySelectorAll(".admin-aviso").forEach((a) => { a.hidden = true; });
-  document.querySelectorAll(".panel-alta").forEach((f) => { f.hidden = true; f.reset(); });
+  document.querySelectorAll(".panel-alta").forEach((f) => { f.reset(); });
+  document.querySelectorAll(".panel-alta.plegable").forEach((f) => { f.hidden = true; });
 
   // Botones de escritura: solo se dibujan si el rol tiene el permiso
   document.querySelectorAll("[data-permiso]").forEach((n) => { n.hidden = !puede(n.dataset.permiso); });
@@ -222,12 +224,37 @@ async function enviando(form, accion) {
   try { await accion(); } finally { boton.disabled = false; }
 }
 
+// Formularios fijos (Usuarios, Cuentas: a la derecha como en las figuras): el boton lleva al primer campo.
+// Formularios plegables (Conceptos): el boton los abre y cierra.
 function abrirAlta(boton, form) {
   boton.addEventListener("click", () => {
-    form.hidden = !form.hidden;
-    if (!form.hidden) form.querySelector("input, select").focus();
+    if (form.classList.contains("plegable")) form.hidden = !form.hidden;
+    if (!form.hidden) {
+      form.querySelector("input, select").focus();
+      form.classList.remove("resalta");
+      void form.offsetWidth;
+      form.classList.add("resalta");
+    }
   });
-  form.querySelector("[data-cancelar]").addEventListener("click", () => { form.reset(); form.hidden = true; });
+  const cancelar = form.querySelector("[data-cancelar]");
+  if (cancelar) cancelar.addEventListener("click", () => { form.reset(); if (form.classList.contains("plegable")) form.hidden = true; });
+}
+
+function cerrarAlta(form) {
+  form.reset();
+  if (form.classList.contains("plegable")) form.hidden = true;
+}
+
+// Mascota del equipo (personaje original): saluda a quien tiene la sesion
+const FRASES = {
+  financiero: "¿Cómo va la empresa?",
+  usuarios: "¿Quién pertenece?",
+  cuentas: "¿Dónde está el dinero?",
+  conceptos: "¿Por qué entra o sale?",
+};
+function saludarMascota() {
+  const nombre = sesion && sesion.user ? sesion.user.name.split(" ")[0] : "";
+  $("#mascota-globo").textContent = `¡Hola${nombre ? `, ${nombre}` : ""}! ${FRASES[estado.ruta] || ""}`;
 }
 
 function etiquetaEstado(activo, femenino = false) {
@@ -348,8 +375,7 @@ $("#form-usuario").addEventListener("submit", (ev) => {
   enviando(form, async () => {
     try {
       const { createCompanyUser: r } = await graphql(M_NUEVO_USUARIO, { input });
-      form.reset();
-      form.hidden = true;
+      cerrarAlta(form);
       aviso("#vista-usuarios", `Usuario ${r.user.name} (${r.user.email}) creado. Queda sin rol hasta la Actividad #14.`, "exito");
       await cargarUsuarios();
     } catch (e) {
@@ -363,19 +389,25 @@ $("#form-usuario").addEventListener("submit", (ev) => {
 
 function prepararTiposCuenta() {
   const select = $("#a-tipo");
-  const filtros = $("#filtros-tipo-cuenta");
-  filtros.append(el("button", { type: "button", class: "filtro activo", textContent: "Todas", dataset: { tipo: "todas" } }));
   for (const [valor, etiqueta] of Object.entries(TIPOS_CUENTA)) {
     select.append(el("option", { value: valor, textContent: etiqueta }));
-    filtros.append(el("button", { type: "button", class: "filtro", textContent: etiqueta, dataset: { tipo: valor } }));
   }
-  filtros.addEventListener("click", (ev) => {
+  $("#filtros-tipo-cuenta").addEventListener("click", (ev) => {
     const b = ev.target.closest("button[data-tipo]");
     if (!b) return;
     estado.filtroTipoCuenta = b.dataset.tipo;
-    filtros.querySelectorAll("button").forEach((x) => x.classList.toggle("activo", x === b));
     pintarCuentas();
   });
+}
+
+// Filtros por tipo: "Todas" y solo los tipos que la empresa si tiene (como la figura 11)
+function pintarFiltrosTipo() {
+  const presentes = Object.keys(TIPOS_CUENTA).filter((t) => estado.cuentas.some((c) => c.accountType === t));
+  if (estado.filtroTipoCuenta !== "todas" && !presentes.includes(estado.filtroTipoCuenta)) estado.filtroTipoCuenta = "todas";
+  const boton = (tipo, texto) => el("button", {
+    type: "button", class: `filtro${estado.filtroTipoCuenta === tipo ? " activo" : ""}`, textContent: texto, dataset: { tipo },
+  });
+  $("#filtros-tipo-cuenta").replaceChildren(boton("todas", "Todas"), ...presentes.map((t) => boton(t, TIPOS_CUENTA[t])));
 }
 
 async function cargarCuentas() {
@@ -394,6 +426,7 @@ async function cargarCuentas() {
 }
 
 function pintarCuentas() {
+  pintarFiltrosTipo();
   const soloActivas = $("#a-solo-activas").checked;
   const filas = estado.cuentas.filter((c) =>
     (estado.filtroTipoCuenta === "todas" || c.accountType === estado.filtroTipoCuenta) && (!soloActivas || c.isActive));
@@ -405,7 +438,7 @@ function pintarCuentas() {
       el("td", {}, el("strong", { textContent: c.name }), c.description ? el("span", { class: "nota bloque", textContent: c.description }) : null),
       el("td", { textContent: TIPOS_CUENTA[c.accountType] || c.accountType }),
       el("td", {}, c.bankName ? c.bankName : el("span", { class: "sin-dato", textContent: "—" })),
-      el("td", {}, c.clabeMasked ? el("span", { class: "mono", textContent: `CLABE ${c.clabeMasked}` }) : el("span", { class: "sin-dato", textContent: "—" })),
+      el("td", {}, c.clabeMasked ? el("span", { class: "mono", textContent: c.clabeMasked }) : el("span", { class: "sin-dato", textContent: "—" })),
       el("td", {}, etiquetaEstado(c.isActive, true)),
     ));
   }
@@ -436,8 +469,7 @@ $("#form-cuenta").addEventListener("submit", (ev) => {
   enviando(form, async () => {
     try {
       const { createAccount: r } = await graphql(M_NUEVA_CUENTA, { input });
-      form.reset();
-      form.hidden = true;
+      cerrarAlta(form);
       aviso("#vista-cuentas", `Cuenta ${r.name} (${TIPOS_CUENTA[r.accountType]}) creada.`, "exito");
       await cargarCuentas();
     } catch (e) {
@@ -485,7 +517,7 @@ function pintarConceptos() {
   let vacio = null;
   if (estado.conceptos.length === 0) vacio = "La empresa no tiene conceptos todavía.";
   else if (filas.length === 0) vacio = "No hay conceptos con ese filtro.";
-  pintarVacio(tabla.closest(".caja-tabla"), tabla, vacio);
+  pintarVacio(tabla.closest(".tabla-envoltura"), tabla, vacio);
 
   // Conceptos que se pueden permitir: los activos del catalogo
   const select = $("#cc-concepto");
@@ -526,17 +558,35 @@ async function cargarPermitidos() {
   }
 }
 
+function palomita() {
+  const ns = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(ns, "svg");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("class", "palomita");
+  svg.setAttribute("aria-hidden", "true");
+  const c = document.createElementNS(ns, "circle");
+  c.setAttribute("cx", "12"); c.setAttribute("cy", "12"); c.setAttribute("r", "11");
+  const path = document.createElementNS(ns, "path");
+  path.setAttribute("d", "M7 12.5l3.2 3.2L17 9");
+  svg.append(c, path);
+  return svg;
+}
+
 function pintarPermitidos(lista) {
   const escribe = puede("concepts.write");
   const nombreCuenta = (estado.cuentasSelector.find((c) => c.id === estado.cuentaElegida) || {}).name || "";
+  $("#cc-nombre").textContent = nombreCuenta;
   $("#lista-permitidos").replaceChildren(...lista.map((ac) => el("li", {},
-    el("span", {}, el("strong", { textContent: ac.concept.name }), " ",
-      el("span", { class: `etiqueta ${ac.concept.type === "INCOME" ? "ingreso" : "egreso"}`, textContent: TIPOS_CONCEPTO[ac.concept.type] })),
+    palomita(),
+    el("span", { class: "permitido-nombre", textContent: ac.concept.name }),
+    el("span", { class: `etiqueta ${ac.concept.type === "INCOME" ? "ingreso" : "egreso"}`, textContent: TIPOS_CONCEPTO[ac.concept.type] }),
     escribe ? el("button", {
-      type: "button", class: "secundario chico", textContent: "Quitar",
+      type: "button", class: "quitar", textContent: "Quitar",
+      title: `Quitar ${ac.concept.name} de ${nombreCuenta}`,
       onclick: () => quitar(ac.concept, nombreCuenta),
     }) : null,
   )));
+  $("#lista-permitidos").hidden = lista.length === 0;
   const vacio = $("#permitidos-vacio");
   vacio.hidden = lista.length > 0;
   vacio.textContent = `La cuenta ${nombreCuenta} todavía no acepta ningún concepto.`;
@@ -597,8 +647,7 @@ $("#form-concepto").addEventListener("submit", (ev) => {
   enviando(form, async () => {
     try {
       const { createConcept: r } = await graphql(M_NUEVO_CONCEPTO, { input });
-      form.reset();
-      form.hidden = true;
+      cerrarAlta(form);
       aviso("#vista-conceptos", `Concepto ${r.name} (${TIPOS_CONCEPTO[r.type]}) creado. Asígnalo a una cuenta en el panel de la derecha.`, "exito");
       await cargarConceptos();
     } catch (e) {
